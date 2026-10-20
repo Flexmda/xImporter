@@ -1,7 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import { installerChoices } from "../os.js";
 
 var version = import.meta.env.XIMPORTER_VERSION;
+var downloads = installerChoices("all", version);
 ---
 <Base title="xImporter">
   <h1>Clips en Premiere, listos para editar.</h1>
@@ -29,12 +31,12 @@ var version = import.meta.env.XIMPORTER_VERSION;
     <div id="os-actions"></div>
     <noscript>
       <p>Sin JavaScript, elige el instalador de la versión {version}:</p>
-      <p><a class="download" href={"/downloads/xImporter-" + version + "-mac-arm64.pkg"}>Descargar para Apple Silicon</a></p>
-      <p><a class="download" href={"/downloads/xImporter-" + version + "-mac-x64.pkg"}>Descargar para Mac Intel</a></p>
-      <p><a class="download" href={"/downloads/xImporter-" + version + "-win-x64.exe"}>Descargar para Windows</a></p>
+      {downloads.map(function(choice) {
+        return <p><a class="download" href={choice.href}>{choice.label}</a></p>;
+      })}
     </noscript>
   </div>
-  <p class="note">El botón principal descarga el .pkg o el .exe. En Mac, la primera vez: clic derecho &gt; Abrir (en macOS 15, Ajustes del Sistema &gt; Privacidad y seguridad &gt; Abrir de todas formas). En Windows, si SmartScreen avisa, Más información &gt; Ejecutar de todas formas. El zip y el .zxp son alternativas. Los instaladores no están publicados: el proyecto de Firebase todavía no existe.</p>
+  <p class="note">El botón principal descarga el .pkg o el .exe de la release pública v1.0.0-beta. En Mac, la primera vez: clic derecho &gt; Abrir (en macOS 15, Ajustes del Sistema &gt; Privacidad y seguridad &gt; Abrir de todas formas). En Windows, si SmartScreen avisa, Más información &gt; Ejecutar de todas formas. El zip y el .zxp de esa misma release son alternativas. El sitio en Firebase, cuando se publique, solo muestra esta guía.</p>
   <p><a href="/instalar">Guía de instalación</a></p>
 </Base>
 

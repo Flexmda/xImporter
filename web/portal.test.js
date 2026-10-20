@@ -51,9 +51,10 @@ test("OS detection matches the browser matrix", function() {
   }), "all");
   assert.ok(describeDownload("mac-both", "9.9.9").indexOf("Acerca de este Mac") !== -1);
   assert.ok(describeDownload("win-arm", "9.9.9").indexOf("Windows ARM") !== -1);
-  assert.equal(installerChoices("mac-arm64", "9.9.9")[0].href, "/downloads/xImporter-9.9.9-mac-arm64.pkg");
-  assert.equal(installerChoices("mac-x64", "9.9.9")[0].href, "/downloads/xImporter-9.9.9-mac-x64.pkg");
-  assert.equal(installerChoices("win-x64", "9.9.9")[0].href, "/downloads/xImporter-9.9.9-win-x64.exe");
+  var release = "https://github.com/Flexmda/xImporter/releases/download/v1.0.0-beta/";
+  assert.equal(installerChoices("mac-arm64", "9.9.9")[0].href, release + "xImporter-9.9.9-mac-arm64.pkg");
+  assert.equal(installerChoices("mac-x64", "9.9.9")[0].href, release + "xImporter-9.9.9-mac-x64.pkg");
+  assert.equal(installerChoices("win-x64", "9.9.9")[0].href, release + "xImporter-9.9.9-win-x64.exe");
   assert.equal(installerChoices("mac-both", "9.9.9").length, 2);
   assert.equal(installerChoices("all", "9.9.9").length, 3);
   assert.equal(installerChoices("win-arm", "9.9.9").length, 0);
@@ -69,6 +70,9 @@ test("install guide leads with the double-click installers", function() {
   assert.ok(guide.indexOf("Abrir de todas formas") !== -1);
   assert.ok(guide.indexOf("Ejecutar de todas formas") !== -1);
   assert.ok(zipAt !== -1 && pkgAt < zipAt);
+  var home = fs.readFileSync(path.join(here, "src/layouts/Base.astro"), "utf8");
+  assert.ok(home.indexOf(">BETA<") !== -1);
+  assert.ok(home.indexOf("no se ha probado en un Premiere real") !== -1);
 });
 
 test("firebase.json is Hosting-only and names no project", function() {

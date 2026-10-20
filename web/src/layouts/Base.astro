@@ -12,17 +12,21 @@ var title = Astro.props.title || "xImporter";
 </head>
 <body>
   <header>
-    <strong>xImporter</strong>
+    <div class="brand">
+      <strong>xImporter</strong>
+      <span class="beta">BETA</span>
+    </div>
     <nav>
       <a href="/">Inicio</a>
       <a href="/instalar">Instalación</a>
     </nav>
   </header>
   <main>
+    <p class="beta-banner">BETA. Esta versión no se ha probado en un Premiere real.</p>
     <slot />
   </main>
   <footer>
-    <p>Panel interno para Premiere Pro. No hay pagos, licencias ni descarga pública todavía.</p>
+    <p>Panel interno para Premiere Pro. BETA: no se ha probado en Premiere real. No hay pagos ni licencias.</p>
     <p>Terceros: yt-dlp, ffmpeg (estos binarios estáticos incluyen x264, GPL) y Deno.</p>
   </footer>
 </body>
