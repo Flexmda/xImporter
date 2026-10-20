@@ -446,6 +446,18 @@ test("import script escapes spaces, quotes, backslashes, and unicode", function(
   assert.equal(quoted.indexOf("importDownloadedFile("), 0);
   assert.ok(quoted.indexOf('say \\"hi\\"') !== -1);
   assert.ok(quoted.indexOf("C:\\\\Movies\\\\") !== -1);
+
+  var host = fs.readFileSync(path.join(root, "panel", "host", "import.jsx"), "utf8");
+  var client = fs.readFileSync(path.join(root, "panel", "client", "main.js"), "utf8");
+  assert.equal(host.indexOf("$.fileName"), -1);
+  assert.ok(host.indexOf('item.name !== "xImporter"') !== -1);
+  assert.ok(host.indexOf("createBin(\"xImporter\")") !== -1);
+  assert.ok(host.indexOf("findOrCreateImporterBin") !== -1);
+  var searchAt = host.indexOf("isImporterBin(children[i])");
+  var createAt = host.indexOf("createBin(\"xImporter\")");
+  assert.ok(searchAt !== -1 && createAt !== -1 && searchAt < createAt);
+  assert.ok(host.indexOf("importFiles([filePath], true, target, false)") !== -1);
+  assert.ok(client.indexOf("Importado en xImporter.") !== -1);
 });
 
 test("rejects a URL that is not http(s) before spawning", async function() {
