@@ -1,11 +1,12 @@
 # Bundled binaries
 
-`mac-arm64/`, `mac-x64/`, and `win-x64/` are created in git so the layout is stable. Their executables are gitignored.
-
-Milestone 1 downloads only the Apple Silicon set, into `mac-arm64/`:
+`mac-arm64/`, `mac-x64/`, and `win-x64/` stay in git so the layout is stable. Their executables are gitignored.
 
 ```sh
-scripts/fetch-binaries.sh
+scripts/fetch-binaries.sh            # mac-arm64, mac-x64, or win-x64 from this machine
+scripts/fetch-binaries.sh mac-x64    # Intel Mac
+scripts/fetch-binaries.sh mac-arm64  # Apple Silicon
+scripts/fetch-binaries.sh win-x64    # Windows x64
 ```
 
-That script places `yt-dlp`, `ffmpeg`, and `deno` there. The other two folders are reserved for later milestones.
+Mac folders receive `yt-dlp`, `ffmpeg`, and `deno`. `win-x64/` receives the `.exe` names. On Darwin, Node's `process.arch` of `x64` selects `mac-x64`, and `arm64` selects `mac-arm64`. On Windows, `x64` selects `win-x64`.

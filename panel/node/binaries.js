@@ -29,10 +29,8 @@ function resolveBinaries(options) {
     var fileName = executableName(names[i], options.platform);
     var full = path.join(dir, fileName);
     if (!options.existsSync(full)) {
-      var hint = "Missing " + full + ". From the repo root, run scripts/fetch-binaries.sh.";
-      if (folder !== "mac-arm64") {
-        hint += " Milestone 1 only fetches mac-arm64 binaries. On Apple Silicon, open Premiere natively (not under Rosetta).";
-      }
+      var hint = "Missing " + full + ".";
+      hint += " From the repo root, run scripts/fetch-binaries.sh " + folder + ".";
       var missing = new Error(hint);
       missing.code = "E-BIN-01";
       missing.path = full;

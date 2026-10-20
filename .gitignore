@@ -6,6 +6,7 @@ panel/bin/win-x64/**
 !panel/bin/mac-x64/.gitkeep
 !panel/bin/win-x64/.gitkeep
 
+dist/
 node_modules/
 .DS_Store
 *.log
