@@ -30,11 +30,7 @@ function resolveBinaries(options) {
     var full = path.join(dir, fileName);
     if (!options.existsSync(full)) {
       var hint = "Missing " + full + ".";
-      if (folder === "mac-arm64" || folder === "mac-x64") {
-        hint += " From the repo root, run scripts/fetch-binaries.sh " + folder + ".";
-      } else {
-        hint += " Windows binaries are not downloaded by scripts/fetch-binaries.sh.";
-      }
+      hint += " From the repo root, run scripts/fetch-binaries.sh " + folder + ".";
       var missing = new Error(hint);
       missing.code = "E-BIN-01";
       missing.path = full;

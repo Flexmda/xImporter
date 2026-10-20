@@ -359,6 +359,10 @@ test("manifest, debug flag, and gitignore match the spike contract", function() 
   assert.ok(fetchScript.indexOf("0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202") !== -1);
   assert.ok(fetchScript.indexOf("95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a") !== -1);
   assert.ok(fetchScript.indexOf("7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4") !== -1);
+  assert.ok(fetchScript.indexOf("66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a") !== -1);
+  assert.ok(fetchScript.indexOf("a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238") !== -1);
+  assert.ok(fetchScript.indexOf("60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba") !== -1);
+  assert.ok(fetchScript.indexOf("win-x64") !== -1);
   assert.ok(fetchScript.indexOf("xattr -dr com.apple.quarantine") !== -1);
   assert.ok(fetchScript.indexOf("codesign -s - --force") !== -1);
 

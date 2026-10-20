@@ -17,7 +17,7 @@ docs/             load steps and the lipo checklist
 web/              placeholder, not deployed
 ```
 
-`panel/bin/mac-arm64/`, `mac-x64/`, and `win-x64/` are in the tree. Their executables are gitignored.
+`panel/bin/mac-arm64/`, `mac-x64/`, and `win-x64/` are in the tree. Their executables are gitignored. Fetch them with `scripts/fetch-binaries.sh <target>`.
 
 ## Checks
 
