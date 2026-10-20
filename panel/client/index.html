@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <title>xImporter</title>
@@ -8,13 +8,44 @@
 <body>
   <header>
     <h1>xImporter</h1>
-    <p class="note">Internal. Download only media you have the rights to use.</p>
+    <p class="note">Solo para contenido propio o con permiso del titular.</p>
   </header>
+
   <label for="url">URL</label>
-  <input id="url" type="url" spellcheck="false" placeholder="https://">
-  <button id="download" type="button">Download</button>
-  <p id="status">Idle</p>
+  <div class="url-row">
+    <input id="url" type="url" spellcheck="false" placeholder="https://">
+    <button id="paste" type="button">Pegar</button>
+  </div>
+
+  <label for="mode">Modo</label>
+  <select id="mode">
+    <option value="video">Video MP4</option>
+    <option value="wav">Audio WAV</option>
+    <option value="mp3">Audio MP3</option>
+  </select>
+
+  <div id="resolution-row">
+    <label for="resolution">Resolución</label>
+    <select id="resolution">
+      <option value="2160">4K (2160p)</option>
+      <option value="1080" selected>1080p</option>
+      <option value="720">720p</option>
+      <option value="auto">Auto</option>
+    </select>
+    <p id="warn-4k" class="warn" hidden>4K casi siempre se recodifica y puede tardar bastante.</p>
+  </div>
+
+  <p class="folder">Carpeta: <span id="folder">~/Movies/xImporter</span></p>
+
+  <div class="actions">
+    <button id="download" type="button">Descargar</button>
+    <button id="cancel" type="button" disabled>Cancelar</button>
+  </div>
+
+  <p id="status">Inactivo</p>
+  <div class="bar" aria-hidden="true"><div id="bar-fill"></div></div>
   <pre id="log" aria-live="polite"></pre>
+
   <script src="CSInterface.js"></script>
   <script src="main.js"></script>
 </body>

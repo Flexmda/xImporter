@@ -1,6 +1,6 @@
 # xImporter
 
-Internal Adobe Premiere Pro panel for Jose's agency. It downloads a URL to `~/Movies/xImporter` as MP4 (H.264/AAC, up to 1080p) and imports the file into the open project.
+Internal Adobe Premiere Pro panel for Jose's agency. The Spanish panel downloads a YouTube, TikTok, or Facebook URL to `~/Movies/xImporter` as video MP4 (H.264/AAC at 720, 1080, 2160, or auto), WAV, or MP3, and imports the file into the open project.
 
 No payments, licenses, HWID, paid code-signing certificates, notarization, or Authenticode.
 

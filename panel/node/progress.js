@@ -110,6 +110,20 @@ function formatProgress(progress) {
   return parts.join(" · ");
 }
 
+function formatProgressEs(progress, mode) {
+  if (!progress) return "";
+  if (progress.phase === "transcode") return "Convirtiendo a H.264";
+  var label = "Descargando";
+  if (progress.phase === "postprocess") label = "Uniendo";
+  else if (mode === "wav" || mode === "mp3") label = "Descargando audio";
+  var parts = [label];
+  if (typeof progress.percent === "number") parts.push(progress.percent.toFixed(0) + "%");
+  var speed = formatSpeed(progress.speed);
+  if (speed) parts.push(speed);
+  if (typeof progress.eta === "number" && progress.eta >= 0) parts.push("Faltan " + formatEta(progress.eta));
+  return parts.join(" · ");
+}
+
 module.exports = {
   parseProgressLine: parseProgressLine,
   isMediaPath: isMediaPath,
@@ -117,5 +131,6 @@ module.exports = {
   createLineSplitter: createLineSplitter,
   formatSpeed: formatSpeed,
   formatEta: formatEta,
-  formatProgress: formatProgress
+  formatProgress: formatProgress,
+  formatProgressEs: formatProgressEs
 };

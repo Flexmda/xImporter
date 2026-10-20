@@ -74,12 +74,16 @@ test("progress parser reads XIP fields and ignores junk", function() {
   assert.equal(parsed.speed, 250000);
   assert.equal(parsed.eta, 4);
   assert.equal(progress.formatProgress(parsed), "Downloading · 25% · 250.0 KB/s · ETA 0:04");
+  assert.equal(progress.formatProgressEs(parsed, "video"), "Descargando · 25% · 250.0 KB/s · Faltan 0:04");
+  assert.equal(progress.formatProgressEs(parsed, "wav"), "Descargando audio · 25% · 250.0 KB/s · Faltan 0:04");
 
   var done = progress.parseProgressLine("postprocess:XIP|finished|NA|NA|NA|NA|NA");
   assert.equal(done.phase, "postprocess");
   assert.equal(done.percent, null);
   assert.equal(progress.formatProgress(done), "Processing");
+  assert.equal(progress.formatProgressEs(done, "video"), "Uniendo");
   assert.equal(progress.formatProgress({ phase: "transcode" }), "Converting to H.264/AAC");
+  assert.equal(progress.formatProgressEs({ phase: "transcode" }), "Convirtiendo a H.264");
 
   assert.equal(progress.parseProgressLine("WARNING: something XIP|nope"), null);
   assert.equal(progress.parseProgressLine(""), null);
@@ -715,6 +719,28 @@ test("Windows cancel runs taskkill /T /F on the process tree", async function() 
   assert.deepEqual(spawn.calls[1].args, ["/T", "/F", "/PID", "4242"]);
   assert.equal(spawn.calls[1].opts.shell, false);
   assert.deepEqual(engine.removed, [path.join("/tmp/out", engineMod.WORK_DIR_NAME)]);
+});
+
+test("Spanish panel exposes mode, resolution, 4K warning, and cancel", function() {
+  var html = fs.readFileSync(path.join(root, "panel", "client", "index.html"), "utf8");
+  var client = fs.readFileSync(path.join(root, "panel", "client", "main.js"), "utf8");
+  var css = fs.readFileSync(path.join(root, "panel", "client", "styles.css"), "utf8");
+  assert.ok(html.indexOf('lang="es"') !== -1);
+  ["Video MP4", "Audio WAV", "Audio MP3", "4K (2160p)", "1080p", "720p", "Auto", "Descargar", "Cancelar", "Pegar"].forEach(function(label) {
+    assert.ok(html.indexOf(label) !== -1, label);
+  });
+  assert.ok(html.indexOf("warn-4k") !== -1);
+  assert.ok(html.indexOf("4K casi siempre se recodifica") !== -1);
+  assert.ok(client.indexOf("resolutionRow.hidden = audio") !== -1);
+  assert.ok(client.indexOf('mode: modeEl.value') !== -1);
+  assert.ok(client.indexOf('resolution: resolutionEl.value') !== -1);
+  assert.ok(client.indexOf("engine.cancel()") !== -1);
+  assert.ok(client.indexOf("formatProgressEs") !== -1);
+  assert.ok(client.indexOf("now - lastPaint < 250") !== -1);
+  ["youtube.com", "youtu.be", "tiktok.com", "facebook.com", "fb.watch"].forEach(function(host) {
+    assert.ok(client.indexOf(host) !== -1, host);
+  });
+  assert.ok(css.indexOf("min-width: 260px") !== -1);
 });
 
 test("manifest, debug flag, and gitignore match the spike contract", function() {

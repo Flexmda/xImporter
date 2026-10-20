@@ -109,11 +109,12 @@ Expected: `file` reports `PE32+ executable (console) x86-64` for all three. Ther
 
 1. Open a Premiere project. The import targets the project root.
 2. Open **Window > Extensions > xImporter**.
-3. Paste an `http` or `https` URL of a short clip you have the rights to download.
-4. Press **Download**.
-5. The status line should move through parsed progress (`Downloading · NN% · speed · ETA`) and then `Importing`.
-6. The MP4 should be in `~/Movies/xImporter`.
-7. The same file should appear in the Project panel.
+3. Paste an `http` or `https` URL from YouTube, TikTok, or Facebook of a short clip you have the rights to download.
+4. Choose **Video MP4**, **Audio WAV**, or **Audio MP3**. For video, choose 4K, 1080p, 720p, or Auto. Audio hides the resolution. 4K shows a warning.
+5. Press **Descargar**. **Cancelar** stops the process tree.
+6. The status line is in Spanish (`Descargando · NN% · velocidad · Faltan m:ss`, then `Uniendo`, `Convirtiendo a H.264`, `Importando`).
+7. The file should be in `~/Movies/xImporter`.
+8. The same file should appear in the Project panel.
 
 The download is one yt-dlp process, spawned with `shell: false`. The URL is its own argument. yt-dlp is started with `--newline`, a progress template marked `XIP`, `--ffmpeg-location` pointed at the bundled ffmpeg, and `--js-runtimes deno:<bundled deno>`. Video mode prefers H.264/AAC at the chosen height (720, 1080, or 2160) and remuxes to MP4. Auto prefers H.264/AAC at any height so a compatible stream is copied. If the probe does not see H.264 video and AAC audio, the panel transcodes with the bundled ffmpeg (`libx264` and AAC at 320 kbps / 48 kHz, scaling down only when a height was chosen, or copying H.264 and converting only the audio). Audio WAV is PCM 16-bit 48 kHz. Audio MP3 uses `--audio-quality 0`. Files land in a `.xip-work` folder and are moved up into `~/Movies/xImporter` when the printed path is inside that folder.
 
