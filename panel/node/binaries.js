@@ -51,14 +51,6 @@ function filePath(dir, base, platform) {
   return path.join(dir, executableName(base, platform));
 }
 
-function directoryComplete(dir, platform, existsSync) {
-  if (!dir || typeof existsSync !== "function") return false;
-  for (var i = 0; i < NAMES.length; i++) {
-    if (!existsSync(filePath(dir, NAMES[i], platform))) return false;
-  }
-  return true;
-}
-
 function unsupportedError(platform, arch) {
   var message;
   if (platform === "win32" && arch === "arm64") {
@@ -101,25 +93,34 @@ function resolveBinaries(options) {
 
   var packaged = path.join(options.extensionRoot, "bin", folder);
   var userDir = userBinDir(options);
-  var dir = packaged;
-  var source = "packaged";
-  if (directoryComplete(userDir, platform, options.existsSync)) {
-    dir = userDir;
-    source = "user";
-  }
-
   var resolved = {
-    dir: dir,
+    dir: packaged,
     folder: folder,
-    source: source,
+    source: "packaged",
     translated: translated,
     warning: platform === "darwin" && arch === "x64" && translated ? rosettaWarning() : null
   };
 
+  // Each binary is chosen on its own. An updated yt-dlp in the user folder
+  // must win even when ffmpeg and deno are still the packaged copies.
+  var userCount = 0;
   for (var i = 0; i < NAMES.length; i++) {
-    var full = filePath(dir, NAMES[i], platform);
-    if (!options.existsSync(full)) throw missingError(full, folder);
+    var packagedFile = filePath(packaged, NAMES[i], platform);
+    var userFile = userDir ? filePath(userDir, NAMES[i], platform) : null;
+    var full = packagedFile;
+    if (userFile && options.existsSync(userFile)) {
+      full = userFile;
+      userCount += 1;
+    }
+    if (!options.existsSync(full)) throw missingError(packagedFile, folder);
     resolved[NAMES[i] === "yt-dlp" ? "ytDlp" : NAMES[i]] = full;
+  }
+
+  if (userCount === NAMES.length) {
+    resolved.source = "user";
+    resolved.dir = userDir;
+  } else if (userCount > 0) {
+    resolved.source = "mixed";
   }
 
   return resolved;

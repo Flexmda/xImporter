@@ -120,6 +120,8 @@ The download is one yt-dlp process, spawned with `shell: false`. The URL is its 
 
 Cancel on macOS sends SIGTERM to the process group and SIGKILL after 3 seconds. Cancel on Windows runs `taskkill /T /F /PID`. Either way the panel deletes only `.xip-work`. A second download while one is running is rejected.
 
+**Actualizar yt-dlp** downloads the official `latest` asset (`yt-dlp_macos` or `yt-dlp.exe`) and checks it against `SHA2-256SUMS` before replacing the copy in the user data folder. A mismatch is not installed. ffmpeg and Deno are not updated from the panel. The resolver uses a user-folder binary only for the files that are actually there.
+
 YouTube needs a network path so Deno can run yt-dlp's JavaScript challenge scripts.
 
 ## What was tested without Premiere

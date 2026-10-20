@@ -87,6 +87,13 @@ button {
   background: #3a3a3a;
 }
 
+.secondary {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  background: #3a3a3a;
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: default;

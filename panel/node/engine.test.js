@@ -347,7 +347,9 @@ test("selector handles Rosetta, Intel, Windows, and the user bin", function() {
       return true;
     }
   });
-  assert.equal(incomplete.source, "packaged");
+  assert.equal(incomplete.source, "mixed");
+  assert.equal(incomplete.ytDlp, path.join(userDir, "yt-dlp"));
+  assert.equal(incomplete.ffmpeg, path.join(userDir, "ffmpeg"));
   assert.equal(incomplete.deno, path.join("/ext", "bin", "mac-arm64", "deno"));
 
   assert.throws(function() {
@@ -747,6 +749,8 @@ test("Spanish panel exposes mode, resolution, 4K warning, and cancel", function(
   assert.ok(client.indexOf('mode: modeEl.value') !== -1);
   assert.ok(client.indexOf('resolution: resolutionEl.value') !== -1);
   assert.ok(client.indexOf("engine.cancel()") !== -1);
+  assert.ok(html.indexOf("Actualizar yt-dlp") !== -1);
+  assert.ok(client.indexOf("updateYtDlp") !== -1);
   assert.ok(client.indexOf("formatProgressEs") !== -1);
   assert.ok(client.indexOf("now - lastPaint < 250") !== -1);
   ["youtube.com", "youtu.be", "tiktok.com", "facebook.com", "fb.watch"].forEach(function(host) {
