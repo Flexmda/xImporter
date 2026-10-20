@@ -52,6 +52,18 @@ function commandName(command) {
   return path.basename(String(command));
 }
 
+// An injected platform that is not this machine's platform is a unit test.
+// Probing sysctl there would be noise. The real panel leaves platform unset.
+function translatedFlag(deps, platform) {
+  if (typeof deps.translated === "boolean") return deps.translated;
+  if (platform !== "darwin") return false;
+  if (typeof deps.execFileSync === "function") {
+    return binaries.readProcTranslated(deps.execFileSync);
+  }
+  if (deps.platform && deps.platform !== process.platform) return false;
+  return binaries.readProcTranslated(childProcess.execFileSync);
+}
+
 function runProcess(spawn, command, args, hooks) {
   hooks = hooks || {};
   return new Promise(function(resolve, reject) {
@@ -168,11 +180,16 @@ function createEngine(deps) {
         extensionRoot: extensionRoot,
         platform: platform,
         arch: arch,
-        existsSync: existsSync
+        existsSync: existsSync,
+        homedir: homedir,
+        localAppData: deps.localAppData,
+        translated: translatedFlag(deps, platform),
+        execFileSync: deps.execFileSync
       });
     } catch (err) {
       return Promise.reject(err);
     }
+    if (bins.warning && hooks.onWarning) hooks.onWarning(bins.warning);
 
     var outputDir = deps.outputDir || outputDirectory(homedir);
     try {
