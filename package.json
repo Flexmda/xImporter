@@ -4,7 +4,7 @@
   "private": true,
   "description": "Internal Premiere Pro CEP panel for Jose's agency. Milestone 1 technical spike.",
   "scripts": {
-    "test": "node --test panel/node/*.test.js && bash scripts/fetch-binaries.sh --self-test && bash scripts/package.sh --self-test && bash install-mac.sh --self-test && bash scripts/sign-zxp.sh --self-test && bash scripts/build-pkg.sh --self-test && bash scripts/build-exe.sh --self-test",
+    "test": "node --test panel/node/*.test.js web/portal.test.js && bash scripts/fetch-binaries.sh --self-test && bash scripts/package.sh --self-test && bash install-mac.sh --self-test && bash scripts/sign-zxp.sh --self-test && bash scripts/build-pkg.sh --self-test && bash scripts/build-exe.sh --self-test",
     "lint": "node scripts/lint.js"
   },
   "engines": {

@@ -1,0 +1,29 @@
+---
+import "../styles/site.css";
+
+var title = Astro.props.title || "xImporter";
+---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title}</title>
+</head>
+<body>
+  <header>
+    <strong>xImporter</strong>
+    <nav>
+      <a href="/">Inicio</a>
+      <a href="/instalar">Instalación</a>
+    </nav>
+  </header>
+  <main>
+    <slot />
+  </main>
+  <footer>
+    <p>Panel interno para Premiere Pro. No hay pagos, licencias ni descarga pública todavía.</p>
+    <p>Terceros: yt-dlp, ffmpeg (estos binarios estáticos incluyen x264, GPL) y Deno.</p>
+  </footer>
+</body>
+</html>
