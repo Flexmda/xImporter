@@ -49,29 +49,21 @@ export function describeDownload(kind, version) {
   return "Instaladores: xImporter-" + v + "-mac-arm64.pkg, xImporter-" + v + "-mac-x64.pkg y xImporter-" + v + "-win-x64.exe.";
 }
 
+export var RELEASE_TAG = "v1.0.0-beta";
+export var RELEASE_BASE = "https://github.com/Flexmda/xImporter/releases/download/" + RELEASE_TAG + "/";
+
+export function installerAsset(version, suffix) {
+  return "xImporter-" + (version || "0.0.0") + "-" + suffix;
+}
+
 export function installerChoices(kind, version) {
-  var v = version || "0.0.0";
-  if (kind === "mac-arm64") {
-    return [{ href: "/downloads/xImporter-" + v + "-mac-arm64.pkg", label: "Descargar para Apple Silicon" }];
-  }
-  if (kind === "mac-x64") {
-    return [{ href: "/downloads/xImporter-" + v + "-mac-x64.pkg", label: "Descargar para Mac Intel" }];
-  }
-  if (kind === "mac-both") {
-    return [
-      { href: "/downloads/xImporter-" + v + "-mac-arm64.pkg", label: "Descargar para Apple Silicon" },
-      { href: "/downloads/xImporter-" + v + "-mac-x64.pkg", label: "Descargar para Mac Intel" }
-    ];
-  }
-  if (kind === "win-x64") {
-    return [{ href: "/downloads/xImporter-" + v + "-win-x64.exe", label: "Descargar para Windows" }];
-  }
-  if (kind === "all") {
-    return [
-      { href: "/downloads/xImporter-" + v + "-mac-arm64.pkg", label: "Descargar para Apple Silicon" },
-      { href: "/downloads/xImporter-" + v + "-mac-x64.pkg", label: "Descargar para Mac Intel" },
-      { href: "/downloads/xImporter-" + v + "-win-x64.exe", label: "Descargar para Windows" }
-    ];
-  }
+  var arm = { href: RELEASE_BASE + installerAsset(version, "mac-arm64.pkg"), label: "Descargar para Apple Silicon" };
+  var intel = { href: RELEASE_BASE + installerAsset(version, "mac-x64.pkg"), label: "Descargar para Mac Intel" };
+  var win = { href: RELEASE_BASE + installerAsset(version, "win-x64.exe"), label: "Descargar para Windows" };
+  if (kind === "mac-arm64") return [arm];
+  if (kind === "mac-x64") return [intel];
+  if (kind === "mac-both") return [arm, intel];
+  if (kind === "win-x64") return [win];
+  if (kind === "all") return [arm, intel, win];
   return [];
 }

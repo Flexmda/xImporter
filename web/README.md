@@ -1,8 +1,12 @@
 # Portal de xImporter
 
-Sitio estático en Astro para Firebase Hosting. Explica la instalación y detecta el sistema. El botón principal baja el `.pkg` (Mac) o el `.exe` (Windows). Si el navegador no identifica el sistema, muestra los tres. No cobra y no activa licencias.
+Sitio estático en Astro para Firebase Hosting. Explica la instalación y detecta el sistema. El botón principal abre el `.pkg` (Mac) o el `.exe` (Windows) de la release pública `v1.0.0-beta`:
 
-Los instaladores no están en git. Antes de un build de Hosting, cópialos a `web/public/downloads/` con el nombre que usa la portada (`xImporter-<version>-mac-arm64.pkg`, `xImporter-<version>-mac-x64.pkg`, `xImporter-<version>-win-x64.exe`). Esos archivos quedan ignorados. El zip y el `.zxp` son la alternativa y tampoco se publican desde aquí.
+`https://github.com/Flexmda/xImporter/releases/download/v1.0.0-beta/<archivo>`
+
+El repositorio es público, así que esa URL baja el archivo sin iniciar sesión. Si el navegador no identifica el sistema, la portada muestra los tres. No cobra y no activa licencias. La marca BETA está en el encabezado: esta versión no se ha probado en un Premiere real.
+
+Hosting no copia los instaladores. El build solo publica la guía.
 
 ## Proyecto de Firebase que hay que crear
 
@@ -41,4 +45,12 @@ npm ci
 npm run dev
 ```
 
-`npm run build` escribe `web/dist/`. Esa carpeta no se sube a git. Sin archivos en `web/public/downloads/`, los enlaces de la portada existen pero no hay binario que servir.
+Desde la raíz del repositorio, el build de Hosting es:
+
+```sh
+cd web
+npm ci
+npm run build
+```
+
+Eso escribe `web/dist/` (la carpeta `public` de `firebase.json`). No se sube a git. El deploy de Firebase no se hace desde aquí.
