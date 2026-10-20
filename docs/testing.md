@@ -1,12 +1,12 @@
 # Testing xImporter
 
-xImporter is an internal CEP panel. It reads a URL, downloads an MP4 (H.264/AAC, up to 1080p) into `~/Movies/xImporter` with the bundled yt-dlp, ffmpeg, and Deno, and imports that file into the open Premiere project.
+xImporter is an internal CEP panel. It reads a URL, downloads video MP4 (H.264/AAC at 720, 1080, 2160, or auto), WAV, or MP3 into `~/Movies/xImporter` with the bundled yt-dlp, ffmpeg, and Deno, and imports that file into the open Premiere project.
 
 Jose's Mac is Intel. On that machine Node reports `process.arch === "x64"`, and the panel loads `panel/bin/mac-x64/`. Apple Silicon (`arm64`) uses `panel/bin/mac-arm64/`. Windows x64 uses `panel/bin/win-x64/` and the `.exe` names. There is no license check and no paid signature. Binaries are ad-hoc signed with `codesign -s -`.
 
 If Premiere on an Apple Silicon Mac is opened under Rosetta, Node reports `x64` and `sysctl.proc_translated` is `1`. The panel still loads `bin/mac-x64/` (those binaries run under Rosetta) and shows a warning to open Premiere natively. An Intel Mac has `proc_translated` `0`, or `sysctl` fails, and gets the same folder with no warning. Windows ARM and any other platform raise `E-BIN-01` with the platform name.
 
-A complete set of the three binaries in the user data folder wins over the copy inside the extension: `~/Library/Application Support/xImporter/bin/<folder>/` on macOS, `%LOCALAPPDATA%\xImporter\bin\win-x64\` on Windows. A partial user folder is ignored. Updates belong there so a signed extension folder is not modified.
+Each binary in the user data folder wins over the copy inside the extension, file by file: `~/Library/Application Support/xImporter/bin/<folder>/` on macOS, `%LOCALAPPDATA%\xImporter\bin\win-x64\` on Windows. An updated yt-dlp is used even when ffmpeg and Deno stay packaged. Updates belong there so the extension folder is not modified.
 
 ## Install on the Intel Mac
 
@@ -148,7 +148,7 @@ YouTube needs a network path so Deno can run yt-dlp's JavaScript challenge scrip
 These checks run on Linux (`npm test` / `npm run lint`):
 
 - `node --check` and `bash -n` on the shell scripts
-- Engine tests, including Darwin `x64` resolving and spawning `bin/mac-x64`, Rosetta (`sysctl.proc_translated` = 1) warning plus the same folder, Windows `.exe` paths, and the user-data bin preferred only when yt-dlp, ffmpeg, and deno are all present
+- Engine tests, including Darwin `x64` resolving and spawning `bin/mac-x64`, Rosetta (`sysctl.proc_translated` = 1) warning plus the same folder, Windows `.exe` paths, and a user-data binary preferred per file (an updated yt-dlp is used while ffmpeg and Deno stay packaged)
 - Mode and resolution arguments (video 720/1080/2160/auto, WAV PCM, MP3), progress lines, and cancel (`SIGTERM` then `SIGKILL` on the process group; `taskkill /T /F` on Windows) with the work folder as the only deletion
 - `scripts/fetch-binaries.sh --self-test` (checksum match and mismatch, `chmod +x`, host target)
 - `scripts/package.sh --self-test` (zip name, only the requested binaries, Spanish `INSTALAR.txt`, executable `install-mac.sh`)
@@ -165,6 +165,8 @@ These checks run on Linux (`npm test` / `npm run lint`):
 ## What was not tested in Premiere
 
 This environment has no Premiere Pro, and `lipo` and `codesign` are not installed, so those checks did not run. `install-mac.sh` without `--self-test` refuses to run anywhere but macOS, so PlayerDebugMode was not written here.
+
+The unsigned `.pkg` was not built here (`pkgbuild` is macOS-only). The NSIS `.exe` was built and left gitignored. Neither installer was opened, and Premiere was not launched. The click-by-click list for Mac Intel, Mac Apple Silicon, and Windows is [qa.md](qa.md).
 
 Jose still needs to confirm on his Intel Mac:
 
