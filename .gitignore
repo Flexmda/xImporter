@@ -1,0 +1,11 @@
+# Binaries downloaded by scripts/fetch-binaries.sh. Never commit them.
+panel/bin/mac-arm64/**
+panel/bin/mac-x64/**
+panel/bin/win-x64/**
+!panel/bin/mac-arm64/.gitkeep
+!panel/bin/mac-x64/.gitkeep
+!panel/bin/win-x64/.gitkeep
+
+node_modules/
+.DS_Store
+*.log

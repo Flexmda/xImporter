@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  CEP 11 is what Premiere Pro 2022–2024 ship. Premiere Pro 2025 (25.x) ships CEP 12.
+  ExtensionManifest 11.0 is the newest manifest those CEP 11 hosts accept.
+  CEP 12 still loads a manifest that requires CSXS 11.0.
+  Host version 22.0 is Premiere Pro 2022. 99.9 keeps later releases in range.
+-->
+<ExtensionManifest
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  Version="11.0"
+  ExtensionBundleId="com.ximporter"
+  ExtensionBundleVersion="0.1.0"
+  ExtensionBundleName="xImporter">
+  <ExtensionList>
+    <Extension Id="com.ximporter.panel" Version="0.1.0"/>
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PPRO" Version="[22.0,99.9]"/>
+    </HostList>
+    <LocaleList>
+      <Locale Code="All"/>
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="11.0"/>
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.ximporter.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./client/index.html</MainPath>
+          <ScriptPath>./host/import.jsx</ScriptPath>
+          <CEFCommandLine>
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--mixed-context</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>xImporter</Menu>
+          <Geometry>
+            <Size>
+              <Height>480</Height>
+              <Width>320</Width>
+            </Size>
+            <MinSize>
+              <Height>280</Height>
+              <Width>260</Width>
+            </MinSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>
