@@ -1,0 +1,89 @@
+---
+import Base from "../layouts/Base.astro";
+
+var version = import.meta.env.XIMPORTER_VERSION;
+---
+<Base title="xImporter">
+  <h1>Clips en Premiere, listos para editar.</h1>
+  <p class="lead">Pega una URL, elige video MP4 (H.264/AAC), WAV o MP3, y el archivo aparece en el bin xImporter.</p>
+  <p class="en">Internal panel for Jose's agency. Paste a URL you have rights to use. No store and no license checkout on this site.</p>
+
+  <h2>Cómo funciona</h2>
+  <ol>
+    <li>Pega una URL de YouTube, TikTok o Facebook.</li>
+    <li>Elige el formato y, si es video, la resolución.</li>
+    <li>El archivo entra al bin <code>xImporter</code> del proyecto abierto.</li>
+  </ol>
+
+  <h2>Compatibilidad</h2>
+  <ul>
+    <li>Premiere Pro 2022 o posterior (CEP 11 y CEP 12).</li>
+    <li>macOS Intel y macOS Apple Silicon, cada uno con su instalador .pkg.</li>
+    <li>Windows 10 y 11, 64 bits. Windows ARM no está soportado.</li>
+  </ul>
+  <p class="note">Solo para contenido propio o con permiso del titular.</p>
+
+  <div class="card" id="os-picker" data-version={version}>
+    <h2>Tu instalador</h2>
+    <p id="os-result">Detectando el sistema…</p>
+    <div id="os-actions"></div>
+    <noscript>
+      <p>Sin JavaScript, elige el instalador de la versión {version}:</p>
+      <p><a class="download" href={"/downloads/xImporter-" + version + "-mac-arm64.pkg"}>Descargar para Apple Silicon</a></p>
+      <p><a class="download" href={"/downloads/xImporter-" + version + "-mac-x64.pkg"}>Descargar para Mac Intel</a></p>
+      <p><a class="download" href={"/downloads/xImporter-" + version + "-win-x64.exe"}>Descargar para Windows</a></p>
+    </noscript>
+  </div>
+  <p class="note">El botón principal descarga el .pkg o el .exe. En Mac, la primera vez: clic derecho &gt; Abrir (en macOS 15, Ajustes del Sistema &gt; Privacidad y seguridad &gt; Abrir de todas formas). En Windows, si SmartScreen avisa, Más información &gt; Ejecutar de todas formas. El zip y el .zxp son alternativas. Los instaladores no están publicados: el proyecto de Firebase todavía no existe.</p>
+  <p><a href="/instalar">Guía de instalación</a></p>
+</Base>
+
+<script>
+  import { chooseDownload, describeDownload, installerChoices } from "../os.js";
+
+  var picker = document.getElementById("os-picker");
+  var result = document.getElementById("os-result");
+  var version = picker ? picker.dataset.version : "";
+
+  async function detect() {
+    var ua = navigator.userAgent || "";
+    var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) && !/Windows NT/i.test(ua);
+    var platform = "";
+    var architecture = "";
+    var bitness = "";
+    var clientHints = false;
+    var hintsApi = navigator.userAgentData;
+    if (!mobile && hintsApi && typeof hintsApi.getHighEntropyValues === "function") {
+      try {
+        var hints = await hintsApi.getHighEntropyValues(["architecture", "bitness", "platform"]);
+        clientHints = true;
+        platform = hints.platform || hintsApi.platform || "";
+        architecture = hints.architecture || "";
+        bitness = hints.bitness || "";
+      } catch (err) {
+        clientHints = false;
+      }
+    }
+    var kind = chooseDownload({
+      mobile: mobile,
+      clientHints: clientHints,
+      platform: platform,
+      architecture: architecture,
+      bitness: bitness,
+      userAgent: ua
+    });
+    if (result) result.textContent = describeDownload(kind, version);
+    var actions = document.getElementById("os-actions");
+    if (!actions) return;
+    actions.textContent = "";
+    installerChoices(kind, version).forEach(function(choice) {
+      var link = document.createElement("a");
+      link.className = "download";
+      link.href = choice.href;
+      link.textContent = choice.label;
+      actions.appendChild(link);
+    });
+  }
+
+  detect();
+</script>

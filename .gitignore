@@ -7,6 +7,12 @@ panel/bin/win-x64/**
 !panel/bin/win-x64/.gitkeep
 
 dist/
+web/dist/
+web/.astro/
+web/public/downloads/*.pkg
+web/public/downloads/*.exe
+web/public/downloads/*.zip
+web/public/downloads/*.zxp
 *.p12
 *.pfx
 node_modules/

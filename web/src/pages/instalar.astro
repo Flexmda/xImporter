@@ -1,0 +1,61 @@
+---
+import Base from "../layouts/Base.astro";
+
+var version = import.meta.env.XIMPORTER_VERSION;
+---
+<Base title="Instalación · xImporter">
+  <h1>Instalación</h1>
+  <p class="lead">Versión {version}. El panel no está en Adobe Exchange. El instalador activa PlayerDebugMode. No hace falta Terminal ni un certificado de pago.</p>
+
+  <h2>Cuál es mi Mac</h2>
+  <p>Menú Apple &gt; Acerca de este Mac. Si dice Chip Apple M1, M2, M3 o M4, es Apple Silicon y el archivo es <code>xImporter-{version}-mac-arm64.pkg</code>. Si dice Procesador Intel, el archivo es <code>xImporter-{version}-mac-x64.pkg</code>.</p>
+  <p>Safari y Firefox en Mac siempre anuncian «Intel» en el User-Agent. Por eso la portada muestra los dos instaladores de Mac cuando no hay <code>userAgentData</code>. Chrome, Edge, Opera y Brave sí pueden distinguirlos.</p>
+
+  <h2>Mac: doble clic en el .pkg</h2>
+  <ol>
+    <li>Descarga <code>xImporter-{version}-mac-arm64.pkg</code> o <code>xImporter-{version}-mac-x64.pkg</code>.</li>
+    <li>La primera vez, clic derecho sobre el archivo y elige Abrir. En macOS 15 o posterior, si macOS lo bloquea: Ajustes del Sistema &gt; Privacidad y seguridad &gt; Abrir de todas formas. El paquete no está firmado con un certificado de Apple y no está notarizado.</li>
+    <li>El instalador pide la contraseña del Mac porque copia el panel para todos los usuarios en <code>/Library/Application Support/Adobe/CEP/extensions/xImporter</code>. No abre Terminal.</li>
+    <li>Al terminar, el script de instalación deja ejecutables yt-dlp, ffmpeg y deno, quita la cuarentena, los firma ad hoc (<code>codesign -s -</code>) y escribe <code>PlayerDebugMode</code> como texto <code>1</code> para el usuario que inició sesión, en CSXS 11 y CSXS 12. También crea <code>~/Movies/xImporter</code>.</li>
+    <li>Cierra Premiere por completo, ábrelo, abre un proyecto y elige Ventana &gt; Extensiones &gt; xImporter.</li>
+  </ol>
+  <p>Armar el .pkg pide macOS (<code>pkgbuild</code> y <code>productbuild</code>). En un Mac, con los binarios ya descargados: <code>scripts/build-pkg.sh mac-arm64</code>, <code>mac-x64</code> o <code>mac-universal</code>. El mismo trabajo está en el workflow de GitHub Actions <code>mac installers</code>, que solo arranca con <code>workflow_dispatch</code> (no al fusionar). Si el armado no pudo firmar, el postinstall firma ad hoc en el Mac de destino.</p>
+  <p>En un Mac Intel, <code>lipo -archs</code> debe decir <code>x86_64</code> para ffmpeg y deno, y <code>x86_64 arm64</code> para yt-dlp. En Apple Silicon, ffmpeg y deno deben decir <code>arm64</code>. No uses <code>lipo -thin</code> sobre yt-dlp.</p>
+  <p>Si Premiere en un Mac Apple Silicon corre con Rosetta, el panel usa los binarios Intel y pide abrirlo en modo nativo.</p>
+
+  <h2>Windows: doble clic en el .exe</h2>
+  <ol>
+    <li>Descarga <code>xImporter-{version}-win-x64.exe</code>.</li>
+    <li>Si SmartScreen dice que Windows protegió el equipo: Más información &gt; Ejecutar de todas formas. El instalador no tiene firma Authenticode.</li>
+    <li>Copia el panel a <code>%APPDATA%\Adobe\CEP\extensions\xImporter</code>, escribe <code>PlayerDebugMode</code> como <code>REG_SZ</code> <code>1</code> en <code>HKCU\Software\Adobe\CSXS.11</code> y <code>CSXS.12</code>, crea la carpeta de películas y deja <code>Uninstall-xImporter.exe</code>.</li>
+    <li>Reinicia Premiere y abre Ventana &gt; Extensiones &gt; xImporter.</li>
+  </ol>
+  <p class="warn">Windows ARM no está soportado. El .exe se arma con NSIS (<code>scripts/build-exe.sh</code>), que también corre en Linux.</p>
+
+  <h2>Alternativa: zip</h2>
+  <p>El zip sigue existiendo. En Mac, descomprime <code>xImporter-{version}-mac-arm64.zip</code> o <code>mac-x64.zip</code> y, en Terminal, dentro de esa carpeta: <code>chmod +x install-mac.sh</code> y <code>./install-mac.sh</code>. Eso copia el panel a la carpeta CEP de tu usuario, no a <code>/Library</code>.</p>
+  <p>En Windows, descomprime <code>xImporter-{version}-win-x64.zip</code> y ejecuta <code>setup-dev.bat</code>. Copia el panel a <code>%APPDATA%\Adobe\CEP\extensions\xImporter</code> y escribe las mismas claves de PlayerDebugMode.</p>
+
+  <h2>ZXP autofirmado</h2>
+  <p>Segunda alternativa. <code>scripts/sign-zxp.sh</code> llama a ZXPSignCmd de Adobe para crear un certificado autofirmado en <code>dist/certs/</code> (no se sube a git) y firmar un <code>.zxp</code>. ZXPSignCmd solo existe para macOS y Windows. En el agente de Linux no se generó el <code>.zxp</code>. En un Mac:</p>
+  <ol>
+    <li>Descarga <code>ZXPSignCmd</code> de Adobe-CEP/CEP-Resources, carpeta <code>ZXPSignCMD/4.1.3/macOS</code>.</li>
+    <li><code>chmod +x ZXPSignCmd</code> y quita la cuarentena.</li>
+    <li><code>ZXPSIGNCMD="$PWD/ZXPSignCmd" scripts/sign-zxp.sh mac-x64</code> (o <code>mac-arm64</code>).</li>
+  </ol>
+  <p>Ese certificado no es de Adobe ni de Apple. Para esta instalación interna sigue haciendo falta PlayerDebugMode. No hay notarización.</p>
+
+  <h2>Rutas de la extensión</h2>
+  <ul>
+    <li>Mac, el .pkg (todos los usuarios): <code>/Library/Application Support/Adobe/CEP/extensions/xImporter</code></li>
+    <li>Mac, tu usuario (zip o desarrollo): <code>~/Library/Application Support/Adobe/CEP/extensions</code></li>
+    <li>Windows, tu usuario: <code>%APPDATA%\Adobe\CEP\extensions</code></li>
+    <li>Windows, todos: <code>C:\Program Files (x86)\Common Files\Adobe\CEP\extensions</code> o <code>C:\Program Files\Common Files\Adobe\CEP\extensions</code></li>
+  </ul>
+
+  <h2>Desarrollo desde el repositorio</h2>
+  <p>Mac: <code>scripts/setup-dev.sh</code> enlaza <code>panel/</code> y activa PlayerDebugMode. Windows: <code>scripts/setup-dev.bat</code> crea un junction. Ninguno de los dos publica el panel.</p>
+
+  <h2>Quitar el panel</h2>
+  <p>Cierra Premiere. En Windows ejecuta <code>Uninstall-xImporter.exe</code> (también aparece en Aplicaciones). En Mac borra la carpeta <code>xImporter</code> de <code>/Library/Application Support/Adobe/CEP/extensions</code>. El desinstalador de Windows no borra PlayerDebugMode: otros paneles CEP pueden necesitarlo. Si actualizaste yt-dlp desde el panel, esa copia está en <code>~/Library/Application Support/xImporter</code> o en <code>%LOCALAPPDATA%\xImporter</code>.</p>
+</Base>
