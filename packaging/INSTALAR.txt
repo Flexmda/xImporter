@@ -1,0 +1,43 @@
+xImporter @@VERSION@@ — instalación en Mac (@@TARGET@@)
+
+Este paquete es interno de la agencia. No pide licencia, no cobra y no usa un certificado de pago.
+La firma de los binarios es ad hoc (codesign -s -), no una firma Developer ID ni notarización.
+
+Este zip: xImporter-@@VERSION@@-@@TARGET@@
+Equipo: @@ARCH_LABEL@@
+
+1. Descomprime el zip.
+2. Abre Terminal, entra en la carpeta descomprimida y ejecuta:
+
+   chmod +x install-mac.sh
+   ./install-mac.sh
+
+   El instalador copia el panel a:
+   ~/Library/Application Support/Adobe/CEP/extensions/xImporter
+
+   También activa PlayerDebugMode (el texto "1") en com.adobe.CSXS.11 y com.adobe.CSXS.12,
+   quita la cuarentena, firma ad hoc yt-dlp, ffmpeg y deno, comprueba cada firma con codesign -v,
+   y crea la carpeta ~/Movies/xImporter.
+
+3. Cierra Premiere Pro por completo (no basta con cerrar el proyecto) y ábrelo otra vez.
+4. Abre un proyecto.
+5. Elige Ventana > Extensiones > xImporter.
+6. Pega una URL http o https de un video que tengas derecho a descargar y pulsa Download.
+
+El archivo queda en ~/Movies/xImporter como MP4 H.264/AAC de hasta 1080p, y Premiere lo importa al proyecto.
+
+Comprobación de arquitecturas (lipo -archs), en la carpeta bin del panel instalado:
+
+  yt-dlp     x86_64 arm64
+  ffmpeg     @@BIN_ARCH@@
+  deno       @@BIN_ARCH@@
+
+yt-dlp es el ejecutable universal oficial. No lo partas con lipo -thin.
+
+Si el menú no aparece:
+
+  defaults read com.adobe.CSXS.11 PlayerDebugMode
+  defaults read com.adobe.CSXS.12 PlayerDebugMode
+
+Ambos deben responder 1. Vuelve a ejecutar ./install-mac.sh y abre Premiere de nuevo.
+En un Mac Intel, Premiere tiene que ser la aplicación Intel: node reporta la arquitectura x64 y el panel usa bin/mac-x64.

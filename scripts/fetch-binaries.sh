@@ -1,27 +1,30 @@
 #!/usr/bin/env bash
-# Download the Apple Silicon binaries for the milestone 1 spike.
-# Pins are the vendor checksums fetched when this script was written.
+# Download yt-dlp, ffmpeg, and Deno for one Mac target.
+#   scripts/fetch-binaries.sh              # mac-arm64 or mac-x64 from the host CPU
+#   scripts/fetch-binaries.sh mac-x64
+#   scripts/fetch-binaries.sh mac-arm64
+# Pins are the vendor checksums recorded for these releases.
 # On macOS the script also clears quarantine and ad-hoc signs each binary.
 # It does not use a paid certificate, notarization, or Authenticode.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEST="$ROOT/panel/bin/mac-arm64"
 
-# yt-dlp 2026.08.19 official universal2 executable.
-# SHA-256 from SHA2-256SUMS on that GitHub release. Do not lipo -thin this file.
+# yt-dlp 2026.08.19 official universal2 executable (x86_64 + arm64).
+# Same file for both targets. Do not lipo -thin it.
 YT_DLP_URL="https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_macos"
 YT_DLP_SHA256="0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202"
 
-# Deno 2.9.7 official aarch64-apple-darwin zip, plus the inner binary hash.
-DENO_URL="https://github.com/denoland/deno/releases/download/v2.9.7/deno-aarch64-apple-darwin.zip"
-DENO_ZIP_SHA256="5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c"
-DENO_BIN_SHA256="b73737579d5a84c160e3316487594783fa5c15f4e13252a6a07050b755317f1a"
-
-# Martin Riedl static FFmpeg 9.0.2 release, macOS arm64.
-# ffmpeg.org does not publish macOS binaries. This build includes x264 (GPL).
-FFMPEG_URL="https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip"
-FFMPEG_ZIP_SHA256="c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924"
+host_target() {
+  case "$(uname -m)" in
+    arm64|aarch64) printf '%s\n' mac-arm64 ;;
+    x86_64|amd64) printf '%s\n' mac-x64 ;;
+    *)
+      echo "unsupported host architecture: $(uname -m). Pass mac-arm64 or mac-x64." >&2
+      return 1
+      ;;
+  esac
+}
 
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -85,7 +88,7 @@ download() {
 }
 
 self_test() {
-  local tmp bin
+  local tmp bin detected
   tmp="$(mktemp)"
   printf 'ximporter' > "$tmp"
   verify_sha256 "$tmp" "901f614a39969249edc592031fcc964c277991fd4893f995142479fc81e1b383"
@@ -105,6 +108,16 @@ self_test() {
     exit 1
   fi
   rm -f "$bin"
+
+  detected="$(host_target)"
+  case "$detected" in
+    mac-arm64|mac-x64) ;;
+    *)
+      echo "self-test failed: host target '$detected'" >&2
+      exit 1
+      ;;
+  esac
+  echo "host target $detected"
   echo "self-test ok"
 }
 
@@ -113,14 +126,42 @@ if [[ "${1:-}" == "--self-test" ]]; then
   exit 0
 fi
 
-if [[ $# -ne 0 ]]; then
-  echo "usage: scripts/fetch-binaries.sh [--self-test]" >&2
+TARGET="${1:-}"
+if [[ -z "$TARGET" ]]; then
+  TARGET="$(host_target)"
+elif [[ "$TARGET" != "mac-arm64" && "$TARGET" != "mac-x64" ]]; then
+  echo "usage: scripts/fetch-binaries.sh [mac-arm64|mac-x64|--self-test]" >&2
   exit 2
 fi
 
+if [[ $# -gt 1 ]]; then
+  echo "usage: scripts/fetch-binaries.sh [mac-arm64|mac-x64|--self-test]" >&2
+  exit 2
+fi
+
+case "$TARGET" in
+  mac-arm64)
+    DENO_URL="https://github.com/denoland/deno/releases/download/v2.9.7/deno-aarch64-apple-darwin.zip"
+    DENO_ZIP_SHA256="5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c"
+    DENO_BIN_SHA256="b73737579d5a84c160e3316487594783fa5c15f4e13252a6a07050b755317f1a"
+    FFMPEG_URL="https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip"
+    FFMPEG_ZIP_SHA256="c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924"
+    ;;
+  mac-x64)
+    DENO_URL="https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-apple-darwin.zip"
+    DENO_ZIP_SHA256="95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a"
+    DENO_BIN_SHA256="325cf9c4b7156f4efd96ad22177a276a4bf4384147d4c9d9f40f9caee28e5719"
+    FFMPEG_URL="https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffmpeg.zip"
+    FFMPEG_ZIP_SHA256="7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4"
+    ;;
+esac
+
+DEST="$ROOT/panel/bin/$TARGET"
 mkdir -p "$DEST"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+
+echo "target $TARGET"
 
 echo "downloading yt-dlp"
 download "$YT_DLP_URL" "$WORK/yt-dlp_macos"

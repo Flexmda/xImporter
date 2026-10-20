@@ -147,6 +147,17 @@ test("binary folders follow platform and architecture", function() {
   assert.equal(resolved.ffmpeg, path.join("/ext", "bin", "mac-arm64", "ffmpeg"));
   assert.equal(resolved.deno, path.join("/ext", "bin", "mac-arm64", "deno"));
 
+  var intel = binaries.resolveBinaries({
+    extensionRoot: "/ext",
+    platform: "darwin",
+    arch: "x64",
+    existsSync: function() { return true; }
+  });
+  assert.equal(intel.folder, "mac-x64");
+  assert.equal(intel.ytDlp, path.join("/ext", "bin", "mac-x64", "yt-dlp"));
+  assert.equal(intel.ffmpeg, path.join("/ext", "bin", "mac-x64", "ffmpeg"));
+  assert.equal(intel.deno, path.join("/ext", "bin", "mac-x64", "deno"));
+
   assert.throws(function() {
     binaries.resolveBinaries({
       extensionRoot: "/ext",
@@ -166,6 +177,30 @@ test("binary folders follow platform and architecture", function() {
   }, function(err) {
     return err.code === "E-BIN-01" && err.path.indexOf("deno") !== -1;
   });
+});
+
+test("darwin x64 spawns bin/mac-x64", async function() {
+  var spawn = fakeSpawn(function(cmd, args) {
+    if (args.indexOf("--newline") !== -1) {
+      return { code: 0, stdout: "/tmp/out/clip.mp4\n" };
+    }
+    return { code: 1, stderr: "Video: h264\nAudio: aac\n" };
+  });
+  var engine = engineMod.createEngine({
+    spawn: spawn,
+    platform: "darwin",
+    arch: "x64",
+    extensionRoot: "/ext",
+    homedir: "/Users/jose",
+    outputDir: "/tmp/out",
+    existsSync: function() { return true; },
+    mkdirSync: function() {}
+  });
+  var result = await engine.download("https://example.com/v");
+  assert.equal(result.filepath, "/tmp/out/clip.mp4");
+  assert.equal(spawn.calls[0].cmd, path.join("/ext", "bin", "mac-x64", "yt-dlp"));
+  assert.equal(spawn.calls[1].cmd, path.join("/ext", "bin", "mac-x64", "ffmpeg"));
+  assert.equal(spawn.calls[0].opts.shell, false);
 });
 
 test("codec policy skips h264/aac and recodes the other cases", function() {
@@ -322,8 +357,24 @@ test("manifest, debug flag, and gitignore match the spike contract", function() 
 
   var fetchScript = fs.readFileSync(path.join(root, "scripts", "fetch-binaries.sh"), "utf8");
   assert.ok(fetchScript.indexOf("0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202") !== -1);
+  assert.ok(fetchScript.indexOf("95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a") !== -1);
+  assert.ok(fetchScript.indexOf("7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4") !== -1);
   assert.ok(fetchScript.indexOf("xattr -dr com.apple.quarantine") !== -1);
   assert.ok(fetchScript.indexOf("codesign -s - --force") !== -1);
+
+  var installer = fs.readFileSync(path.join(root, "install-mac.sh"), "utf8");
+  assert.ok(installer.indexOf("defaults write com.adobe.CSXS.11 PlayerDebugMode -string 1") !== -1);
+  assert.ok(installer.indexOf("defaults write com.adobe.CSXS.12 PlayerDebugMode -string 1") !== -1);
+  assert.ok(installer.indexOf('xattr -dr com.apple.quarantine "$dest"') !== -1);
+  assert.ok(installer.indexOf("codesign -s - --force") !== -1);
+  assert.ok(installer.indexOf("codesign -v") !== -1);
+  assert.ok(installer.indexOf("Library/Application Support/Adobe/CEP/extensions/xImporter") !== -1);
+  assert.ok(installer.indexOf("Movies/xImporter") !== -1);
+
+  var instalar = fs.readFileSync(path.join(root, "packaging", "INSTALAR.txt"), "utf8");
+  assert.ok(instalar.indexOf("Descomprime") !== -1);
+  assert.ok(instalar.indexOf("@@BIN_ARCH@@") !== -1);
+  assert.ok(instalar.indexOf("x86_64 arm64") !== -1);
 
   ["mac-arm64", "mac-x64", "win-x64"].forEach(function(folder) {
     var ignored = cp.spawnSync("git", ["check-ignore", "-q", "panel/bin/" + folder + "/yt-dlp"], {

@@ -1,109 +1,105 @@
-# Testing xImporter (milestone 1)
+# Testing xImporter
 
 xImporter is an internal CEP panel. It reads a URL, downloads an MP4 (H.264/AAC, up to 1080p) into `~/Movies/xImporter` with the bundled yt-dlp, ffmpeg, and Deno, and imports that file into the open Premiere project.
 
-This milestone does not include payments, licenses, HWID checks, a public website, paid certificates, notarization, or Authenticode. The fetch script ad-hoc signs binaries (`codesign -s -`) so a debug install on the Mac can run them. That signature is not a Developer ID signature.
+Jose's Mac is Intel. On that machine Node reports `process.arch === "x64"`, and the panel loads `panel/bin/mac-x64/`. Apple Silicon (`arm64`) uses `panel/bin/mac-arm64/`. There is no license check and no paid signature. Binaries are ad-hoc signed with `codesign -s -`.
 
-## What was tested without Premiere
+## Install on the Intel Mac
 
-The spike was written on Linux. These checks ran there:
+From the zip `xImporter-<version>-mac-x64.zip`:
 
-- `npm run lint` (`node --check` on the panel and script sources, `bash -n` on the shell scripts)
-- `npm test` (engine, progress parser, yt-dlp arguments, codec decision, ExtendScript string escaping, manifest contract, gitignore)
-- `scripts/fetch-binaries.sh --self-test` (checksum match and mismatch, `chmod +x`)
-- `scripts/fetch-binaries.sh` itself, which downloads the three macOS arm64 binaries and checks the pinned SHA-256 sums
+1. Unzip it.
+2. In Terminal, from the unzipped folder:
 
-`scripts/setup-dev.sh` was syntax-checked. On Linux it prints the `defaults write` commands and changes nothing.
+```sh
+chmod +x install-mac.sh
+./install-mac.sh
+```
 
-`file` on that Linux download reported:
+Spanish steps for that same install are in `INSTALAR.txt` inside the zip.
 
-- `yt-dlp`: Mach-O universal binary, x86_64 and arm64
-- `ffmpeg`: Mach-O 64-bit arm64 executable
-- `deno`: Mach-O 64-bit arm64 executable
-
-Running `ffmpeg -version` on Linux exited 126 (`cannot execute binary file: Exec format error`). The binaries were not committed.
-
-## What was not tested in Premiere
-
-This environment has no Premiere Pro and cannot run Apple Silicon binaries. `lipo` and `codesign` are not installed here, so those two checks did not run. Jose needs to test the real chain on his Apple Silicon Mac:
-
-- `PlayerDebugMode` for CSXS 11 and CSXS 12, and the panel showing up under Window > Extensions
-- Node inside the panel (`--enable-nodejs` and `--mixed-context`)
-- A real yt-dlp download, including Deno for YouTube
-- ffmpeg actually producing or accepting H.264/AAC
-- `app.project.importFiles` putting the file in the Project panel
-- `lipo -archs` and `codesign -v` (those tools are not on the Linux machine)
-
-Do not treat a green Linux test run as proof that Premiere imported the file.
-
-## Load the panel in debug mode
-
-On the Mac, from the repo root:
+From a git checkout on the Intel Mac, the default target is already `mac-x64`:
 
 ```sh
 scripts/fetch-binaries.sh
-scripts/setup-dev.sh
+./install-mac.sh
 ```
 
-`setup-dev.sh` does two things:
+`scripts/fetch-binaries.sh mac-x64` is the same thing written out. `./install-mac.sh` then:
 
-1. Writes `PlayerDebugMode` as the string `1` for `com.adobe.CSXS.11` and `com.adobe.CSXS.12`. Premiere 2022–2024 use CEP 11. Premiere 2025 (25.x) uses CEP 12. An integer `1` is ignored by some versions, so the script forces a string.
-2. Symlinks this repo's `panel/` directory to `~/Library/Application Support/Adobe/CEP/extensions/xImporter`.
+1. Copies `panel/` to `~/Library/Application Support/Adobe/CEP/extensions/xImporter` (a copy, not a symlink).
+2. Writes `PlayerDebugMode` as the string `1` for `com.adobe.CSXS.11` and `com.adobe.CSXS.12`. Premiere 2022–2024 use CEP 11. Premiere 2025 (25.x) uses CEP 12.
+3. Clears `com.apple.quarantine` on the installed panel.
+4. Runs `chmod +x`, `codesign -s - --force`, and `codesign -v` on `yt-dlp`, `ffmpeg`, and `deno`.
+5. Creates `~/Movies/xImporter`.
 
-Quit Premiere completely (not only the project), open it again, open or create a project, then choose **Window > Extensions > xImporter**.
+Quit Premiere completely, open it again, open a project, then choose **Window > Extensions > xImporter**.
+
+`scripts/setup-dev.sh` is only for a checkout: it symlinks the repo's `panel/` into the extensions folder and sets the same debug flags. It does not copy, sign, or create `~/Movies/xImporter`. Use `install-mac.sh` for the install Jose runs.
 
 If the menu item is missing:
 
-- Run `defaults read com.adobe.CSXS.11 PlayerDebugMode` and the same command for `com.adobe.CSXS.12`. Both should print `1`.
-- Confirm the symlink: `ls -l "$HOME/Library/Application Support/Adobe/CEP/extensions/xImporter/CSXS/manifest.xml"`.
-- CEP logs: `/Library/Logs/CSXS/` (the system Library, not only `~/Library`).
-- Open Premiere as a native Apple Silicon app. Under Rosetta, Node reports `x64` and this milestone has no `mac-x64` binaries.
+- `defaults read com.adobe.CSXS.11 PlayerDebugMode` and the same command for `com.adobe.CSXS.12` should both print `1`.
+- Confirm the copy: `ls "$HOME/Library/Application Support/Adobe/CEP/extensions/xImporter/bin/mac-x64"`.
+- CEP logs: `/Library/Logs/CSXS/` (the system Library).
 
 The panel's `.debug` file uses port `8860` if you attach a debugger later. Debug mode does not require that.
 
-## Fetch the binaries
+## Fetch
 
-`scripts/fetch-binaries.sh` fills `panel/bin/mac-arm64/` only:
+`scripts/fetch-binaries.sh [mac-arm64|mac-x64]` downloads into `panel/bin/<target>/`. With no argument it follows the host CPU (`uname -m`: `x86_64` → `mac-x64`, `arm64` → `mac-arm64`).
 
-| File | Source | Pinned version |
+| File | mac-x64 (Intel) | mac-arm64 (Apple Silicon) |
 | --- | --- | --- |
-| `yt-dlp` | Official `yt-dlp_macos` from GitHub | 2026.08.19 |
-| `ffmpeg` | Martin Riedl static release zip | 9.0.2 arm64 |
-| `deno` | Official `deno-aarch64-apple-darwin` | 2.9.7 |
+| `yt-dlp` | Official `yt-dlp_macos` 2026.08.19, universal | The same universal file |
+| `ffmpeg` | Martin Riedl static 9.0.2, macOS amd64 | Martin Riedl static 9.0.2, macOS arm64 |
+| `deno` | Official `deno-x86_64-apple-darwin` 2.9.7 | Official `deno-aarch64-apple-darwin` 2.9.7 |
 
-ffmpeg.org does not ship macOS builds. The Martin Riedl 9.0.2 build is static and includes x264, so that binary is GPL. The panel runs it as a separate process. A later milestone can switch to an LGPL build. Do not commit the downloaded files; `panel/bin/mac-arm64/*` is gitignored except `.gitkeep`.
+ffmpeg.org does not ship macOS builds. Both Martin Riedl 9.0.2 builds include x264, so those binaries are GPL. The panel runs ffmpeg as a separate process. Do not commit the downloaded files.
 
-The script checks SHA-256 before install. Then it runs `chmod +x`. On macOS it also runs `xattr -dr com.apple.quarantine` and `codesign -s - --force`. On Linux it skips those two and says so. Re-signing with an ad-hoc signature replaces whatever signature the vendor shipped. That is intentional for this internal debug spike.
+The script checks SHA-256 before install, then `chmod +x`. On macOS it also runs `xattr -dr com.apple.quarantine` and `codesign -s - --force`. On Linux it skips those two and says so. Re-signing with an ad-hoc signature replaces the vendor signature. That is intentional for this internal install.
 
-`yt-dlp_macos` is a universal binary (x86_64 and arm64). Leave it whole. `lipo -thin` can break the PyInstaller archive appended to that executable.
+`yt-dlp_macos` is universal (x86_64 and arm64). Leave it whole. `lipo -thin` can break the PyInstaller archive appended to that executable.
 
-## Checklist on the Mac
-
-From the repo root, after `scripts/fetch-binaries.sh`:
+Build a zip after the fetch:
 
 ```sh
-file panel/bin/mac-arm64/yt-dlp panel/bin/mac-arm64/ffmpeg panel/bin/mac-arm64/deno
-lipo -archs panel/bin/mac-arm64/yt-dlp
-lipo -archs panel/bin/mac-arm64/ffmpeg
-lipo -archs panel/bin/mac-arm64/deno
-codesign -v panel/bin/mac-arm64/yt-dlp
-codesign -v panel/bin/mac-arm64/ffmpeg
-codesign -v panel/bin/mac-arm64/deno
+scripts/package.sh mac-x64
 ```
 
-Expected:
+Output: `dist/xImporter-<version>-mac-x64.zip`. It contains `install-mac.sh`, `INSTALAR.txt`, and `panel/` with only that target's binaries. `dist/` is gitignored.
 
-- `file` reports Mach-O. `ffmpeg` and `deno` are arm64. `yt-dlp` is a universal Mach-O (x86_64 and arm64), which is what the official `yt-dlp_macos` build is.
+## Checklist
+
+Intel, after `scripts/fetch-binaries.sh mac-x64` (or inside the installed extension):
+
+```sh
+file panel/bin/mac-x64/yt-dlp panel/bin/mac-x64/ffmpeg panel/bin/mac-x64/deno
+lipo -archs panel/bin/mac-x64/yt-dlp
+lipo -archs panel/bin/mac-x64/ffmpeg
+lipo -archs panel/bin/mac-x64/deno
+codesign -v panel/bin/mac-x64/yt-dlp
+codesign -v panel/bin/mac-x64/ffmpeg
+codesign -v panel/bin/mac-x64/deno
+```
+
+Expected on Intel:
+
+- `file` reports Mach-O. `ffmpeg` and `deno` are x86_64. `yt-dlp` is a universal Mach-O.
+- `lipo -archs` prints `x86_64 arm64` for `yt-dlp`, and `x86_64` for `ffmpeg` and `deno`.
+- `codesign -v` exits 0 and prints nothing. `codesign -dv --verbose=2` shows `Signature=adhoc`.
+
+Apple Silicon, with `scripts/fetch-binaries.sh mac-arm64`, the same commands under `panel/bin/mac-arm64/`:
+
 - `lipo -archs` prints `x86_64 arm64` for `yt-dlp`, and `arm64` for `ffmpeg` and `deno`.
-- `codesign -v` exits 0 and prints nothing. `codesign -dv --verbose=2` shows `Signature=adhoc`. A Developer ID or notarization check is out of scope and should not be expected to pass.
 
-`panel/bin/mac-x64/` and `panel/bin/win-x64/` are empty placeholders.
+`panel/bin/win-x64/` is still empty.
 
 ## Try a download
 
 1. Open a Premiere project. The import targets the project root.
 2. Open **Window > Extensions > xImporter**.
-3. Paste an `http` or `https` URL of a short clip you have the rights to download. The panel does not check accounts or licenses.
+3. Paste an `http` or `https` URL of a short clip you have the rights to download.
 4. Press **Download**.
 5. The status line should move through parsed progress (`Downloading · NN% · speed · ETA`) and then `Importing`.
 6. The MP4 should be in `~/Movies/xImporter`.
@@ -111,13 +107,35 @@ Expected:
 
 The download is one yt-dlp process, spawned with `shell: false`. The URL is its own argument. yt-dlp is started with `--newline`, a progress template marked `XIP`, `--ffmpeg-location` pointed at the bundled ffmpeg, and `--js-runtimes deno:<bundled deno>`. The format list prefers H.264/AAC at 1080p or below and remuxes to MP4. If ffmpeg's probe does not see H.264 video and AAC audio, the panel transcodes with the bundled ffmpeg (`libx264` and AAC, or it copies the H.264 stream and converts only the audio).
 
-YouTube needs a network path so Deno can run yt-dlp's JavaScript challenge scripts. A private, age-gated, or region-blocked video will fail in the log; that is yt-dlp, not the import step.
+YouTube needs a network path so Deno can run yt-dlp's JavaScript challenge scripts.
 
-## Run the Linux checks again
+## What was tested without Premiere
 
-```sh
-npm run lint
-npm test
-```
+These checks run on Linux (`npm test` / `npm run lint`):
 
-`npm test` does not download the binaries. Use `scripts/fetch-binaries.sh` for that.
+- `node --check` and `bash -n` on the shell scripts
+- Engine tests, including Darwin `x64` resolving and spawning `bin/mac-x64`
+- `scripts/fetch-binaries.sh --self-test` (checksum match and mismatch, `chmod +x`, host target)
+- `scripts/package.sh --self-test` (zip name, only the requested binaries, Spanish `INSTALAR.txt`, executable `install-mac.sh`)
+- `install-mac.sh --self-test` (copy into a temp home, executable bits, `Movies/xImporter`)
+
+`scripts/fetch-binaries.sh mac-x64` was run here. The checksums matched, and `scripts/package.sh mac-x64` wrote `dist/xImporter-0.1.0-mac-x64.zip` (not committed). `file` on Linux reported:
+
+- `yt-dlp`: Mach-O universal binary, x86_64 and arm64
+- `ffmpeg`: Mach-O 64-bit x86_64 executable
+- `deno`: Mach-O 64-bit x86_64 executable
+
+Those Mach-O files do not run on Linux (`Exec format error`). The binaries are not committed.
+
+## What was not tested in Premiere
+
+This environment has no Premiere Pro, and `lipo` and `codesign` are not installed, so those checks did not run. `install-mac.sh` without `--self-test` refuses to run anywhere but macOS, so PlayerDebugMode was not written here.
+
+Jose still needs to confirm on his Intel Mac:
+
+- The panel appears under Window > Extensions after `./install-mac.sh`
+- `lipo -archs` is `x86_64` for ffmpeg and deno, and `x86_64 arm64` for yt-dlp
+- `codesign -v` exits 0
+- A real download, including Deno for YouTube, and `app.project.importFiles` putting the file in the Project panel
+
+Do not treat a green Linux test run as proof that Premiere imported the file.
