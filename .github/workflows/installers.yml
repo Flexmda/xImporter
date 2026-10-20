@@ -1,0 +1,47 @@
+# Manual installer build. Not run on push, pull_request, or merge.
+name: mac installers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pkg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch Mac binaries
+        run: |
+          bash scripts/fetch-binaries.sh mac-arm64
+          bash scripts/fetch-binaries.sh mac-x64
+      - name: Build unsigned packages
+        run: |
+          bash scripts/build-pkg.sh mac-arm64
+          bash scripts/build-pkg.sh mac-x64
+          bash scripts/build-pkg.sh mac-universal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ximporter-macos-pkgs
+          path: dist/*.pkg
+          if-no-files-found: error
+
+  exe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install NSIS
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      - name: Fetch Windows binaries
+        run: bash scripts/fetch-binaries.sh win-x64
+      - name: Build unsigned installer
+        run: bash scripts/build-exe.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ximporter-windows-exe
+          path: dist/*.exe
+          if-no-files-found: error
