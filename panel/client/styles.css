@@ -10,6 +10,7 @@ html, body {
 
 body {
   padding: 12px;
+  min-width: 260px;
 }
 
 h1 {
@@ -18,24 +19,28 @@ h1 {
   font-weight: 600;
 }
 
-.note {
+.note, .folder {
   margin: 4px 0 12px;
   color: #a3a3a3;
   font-size: 11px;
 }
 
+.folder {
+  word-break: break-all;
+}
+
 label {
   display: block;
-  margin-bottom: 4px;
+  margin: 8px 0 4px;
   color: #c8c8c8;
 }
 
-input, button, pre {
-  width: 100%;
+input, button, select, pre {
   font: inherit;
 }
 
-input {
+input, select {
+  width: 100%;
   padding: 8px;
   color: inherit;
   background: #111;
@@ -43,8 +48,18 @@ input {
   border-radius: 4px;
 }
 
+.url-row {
+  display: flex;
+  gap: 6px;
+}
+
+.url-row input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
 button {
-  margin-top: 8px;
   padding: 8px;
   color: #fff;
   background: #2f6fed;
@@ -53,18 +68,61 @@ button {
   cursor: pointer;
 }
 
+.url-row button {
+  width: auto;
+  background: #3a3a3a;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.actions button {
+  flex: 1;
+}
+
+#cancel {
+  background: #3a3a3a;
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
+.warn {
+  margin: 6px 0 0;
+  color: #e6c15a;
+  font-size: 11px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 #status {
   min-height: 1.4em;
-  margin: 10px 0;
+  margin: 10px 0 6px;
+}
+
+.bar {
+  height: 6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: #111;
+  border-radius: 3px;
+}
+
+#bar-fill {
+  width: 0;
+  height: 100%;
+  background: #2f6fed;
 }
 
 #log {
-  height: 220px;
+  height: 160px;
   margin: 0;
   padding: 8px;
   overflow: auto;
