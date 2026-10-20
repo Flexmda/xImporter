@@ -115,7 +115,9 @@ Expected: `file` reports `PE32+ executable (console) x86-64` for all three. Ther
 6. The MP4 should be in `~/Movies/xImporter`.
 7. The same file should appear in the Project panel.
 
-The download is one yt-dlp process, spawned with `shell: false`. The URL is its own argument. yt-dlp is started with `--newline`, a progress template marked `XIP`, `--ffmpeg-location` pointed at the bundled ffmpeg, and `--js-runtimes deno:<bundled deno>`. The format list prefers H.264/AAC at 1080p or below and remuxes to MP4. If ffmpeg's probe does not see H.264 video and AAC audio, the panel transcodes with the bundled ffmpeg (`libx264` and AAC, or it copies the H.264 stream and converts only the audio).
+The download is one yt-dlp process, spawned with `shell: false`. The URL is its own argument. yt-dlp is started with `--newline`, a progress template marked `XIP`, `--ffmpeg-location` pointed at the bundled ffmpeg, and `--js-runtimes deno:<bundled deno>`. Video mode prefers H.264/AAC at the chosen height (720, 1080, or 2160) and remuxes to MP4. Auto prefers H.264/AAC at any height so a compatible stream is copied. If the probe does not see H.264 video and AAC audio, the panel transcodes with the bundled ffmpeg (`libx264` and AAC at 320 kbps / 48 kHz, scaling down only when a height was chosen, or copying H.264 and converting only the audio). Audio WAV is PCM 16-bit 48 kHz. Audio MP3 uses `--audio-quality 0`. Files land in a `.xip-work` folder and are moved up into `~/Movies/xImporter` when the printed path is inside that folder.
+
+Cancel on macOS sends SIGTERM to the process group and SIGKILL after 3 seconds. Cancel on Windows runs `taskkill /T /F /PID`. Either way the panel deletes only `.xip-work`. A second download while one is running is rejected.
 
 YouTube needs a network path so Deno can run yt-dlp's JavaScript challenge scripts.
 
@@ -125,6 +127,7 @@ These checks run on Linux (`npm test` / `npm run lint`):
 
 - `node --check` and `bash -n` on the shell scripts
 - Engine tests, including Darwin `x64` resolving and spawning `bin/mac-x64`, Rosetta (`sysctl.proc_translated` = 1) warning plus the same folder, Windows `.exe` paths, and the user-data bin preferred only when yt-dlp, ffmpeg, and deno are all present
+- Mode and resolution arguments (video 720/1080/2160/auto, WAV PCM, MP3), progress lines, and cancel (`SIGTERM` then `SIGKILL` on the process group; `taskkill /T /F` on Windows) with the work folder as the only deletion
 - `scripts/fetch-binaries.sh --self-test` (checksum match and mismatch, `chmod +x`, host target)
 - `scripts/package.sh --self-test` (zip name, only the requested binaries, Spanish `INSTALAR.txt`, executable `install-mac.sh`)
 - `install-mac.sh --self-test` (copy into a temp home, executable bits, `Movies/xImporter`)

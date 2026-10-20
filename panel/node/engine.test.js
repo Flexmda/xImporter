@@ -104,6 +104,9 @@ test("output path is the last absolute media path, not a progress line", functio
     "C:\\Movies\\xImporter\\clip.mp4"
   ]);
   assert.equal(found, "C:\\Movies\\xImporter\\clip.mp4");
+  assert.equal(progress.isMediaPath("/tmp/voice.wav"), true);
+  assert.equal(progress.isMediaPath("/tmp/voice.mp3"), true);
+  assert.equal(progress.findOutputPath(["/tmp/voice.wav"]), "/tmp/voice.wav");
 });
 
 test("yt-dlp args spawn without a shell and keep the URL as its own argument", function() {
@@ -131,6 +134,58 @@ test("yt-dlp args spawn without a shell and keep the URL as its own argument", f
   built.forEach(function(arg) {
     if (arg !== url) assert.equal(arg.indexOf(url), -1);
   });
+
+  var fourK = argsMod.buildYtDlpArgs({
+    url: url,
+    ffmpegPath: "/bin/ffmpeg",
+    denoPath: "/bin/deno",
+    outputDir: "/tmp/out",
+    resolution: "2160"
+  });
+  assert.equal(fourK[fourK.indexOf("-f") + 1], argsMod.videoFormat(2160));
+  assert.ok(fourK[fourK.indexOf("-f") + 1].indexOf("height<=2160") !== -1);
+  assert.equal(fourK[fourK.length - 1], url);
+
+  var auto = argsMod.buildYtDlpArgs({
+    url: url,
+    ffmpegPath: "/bin/ffmpeg",
+    denoPath: "/bin/deno",
+    outputDir: "/tmp/out",
+    resolution: "auto"
+  });
+  var autoFormat = auto[auto.indexOf("-f") + 1];
+  assert.equal(autoFormat.indexOf("height<="), -1);
+  assert.equal(autoFormat.indexOf("bv*[vcodec^=avc1]"), 0);
+  assert.equal(argsMod.heightCap("auto"), null);
+  assert.equal(argsMod.heightCap("720"), 720);
+
+  var wav = argsMod.buildYtDlpArgs({
+    url: url,
+    ffmpegPath: "/bin/ffmpeg",
+    denoPath: "/bin/deno",
+    outputDir: "/tmp/out",
+    mode: "wav",
+    resolution: "2160"
+  });
+  assert.equal(wav[wav.length - 1], url);
+  assert.ok(wav.indexOf("--audio-format") !== -1);
+  assert.equal(wav[wav.indexOf("--audio-format") + 1], "wav");
+  assert.equal(wav[wav.indexOf("--postprocessor-args") + 1], "ExtractAudio:-acodec pcm_s16le -ar 48000");
+  assert.equal(wav.indexOf("--merge-output-format"), -1);
+  assert.equal(wav.indexOf("height<=2160"), -1);
+
+  var mp3 = argsMod.buildYtDlpArgs({
+    url: url,
+    ffmpegPath: "/bin/ffmpeg",
+    denoPath: "/bin/deno",
+    outputDir: "/tmp/out",
+    mode: "mp3"
+  });
+  assert.equal(mp3[mp3.indexOf("--audio-format") + 1], "mp3");
+  assert.equal(mp3[mp3.indexOf("--audio-quality") + 1], "0");
+  assert.equal(mp3[mp3.length - 1], url);
+  assert.equal(argsMod.normalizeMode("audio"), "wav");
+  assert.equal(argsMod.normalizeMode("audio-mp3"), "mp3");
 });
 
 test("binary folders follow platform and architecture", function() {
@@ -368,6 +423,12 @@ test("codec policy skips h264/aac and recodes the other cases", function() {
   var copy = codecs.buildTranscodeArgs("/in.mp4", "/out.h264.mp4", audioOnly);
   assert.equal(copy[copy.indexOf("-c:v") + 1], "copy");
   assert.equal(copy.indexOf("libx264"), -1);
+  assert.equal(copy[copy.indexOf("-b:a") + 1], "320k");
+
+  var fourK = codecs.buildTranscodeArgs("/in.mp4", "/out.h264.mp4", vp9, 2160);
+  assert.ok(fourK.indexOf("scale=-2:'min(2160,ih)'") !== -1);
+  var keepSize = codecs.buildTranscodeArgs("/in.mp4", "/out.h264.mp4", vp9, null);
+  assert.equal(keepSize.indexOf("-vf"), -1);
 });
 
 test("import script escapes spaces, quotes, backslashes, and unicode", function() {
@@ -427,7 +488,11 @@ test("download parses progress and imports the printed mp4 when codecs already m
   });
   assert.equal(result.transcoded, false);
   assert.equal(result.filepath, "/Users/jose/Movies/xImporter/Clip [abc].mp4");
-  assert.deepEqual(made, [path.join("/Users/jose", "Movies", "xImporter")]);
+  assert.deepEqual(made, [
+    path.join("/Users/jose", "Movies", "xImporter"),
+    path.join("/Users/jose", "Movies", "xImporter", engineMod.WORK_DIR_NAME)
+  ]);
+  assert.equal(spawn.calls[0].args[spawn.calls[0].args.indexOf("-P") + 1], path.join("/Users/jose", "Movies", "xImporter", engineMod.WORK_DIR_NAME));
   assert.equal(spawn.calls.length, 2);
   assert.equal(spawn.calls[0].opts.shell, false);
   assert.deepEqual(spawn.calls[0].opts.stdio, ["ignore", "pipe", "pipe"]);
@@ -483,6 +548,173 @@ test("yt-dlp failure and a missing filepath do not look like success", async fun
     return testEngine(noPath).download("https://example.com/v");
   }, function(err) { return err.code === "E-DL-04"; });
   assert.equal(noPath.calls.length, 1);
+});
+
+function listenerMap() {
+  var map = {};
+  return {
+    add: function(ev, fn) {
+      if (!map[ev]) map[ev] = [];
+      map[ev].push(fn);
+    },
+    emit: function(ev, arg) {
+      var list = map[ev] ? map[ev].slice() : [];
+      for (var i = 0; i < list.length; i++) list[i](arg);
+    }
+  };
+}
+
+function hangingSpawn() {
+  var calls = [];
+  function spawn(cmd, args, opts) {
+    var stdout = listenerMap();
+    var stderr = listenerMap();
+    var proc = listenerMap();
+    var record = { cmd: cmd, args: args, opts: opts };
+    var child = {
+      pid: 4242,
+      stdout: { on: stdout.add },
+      stderr: { on: stderr.add },
+      on: proc.add,
+      kill: function(sig) {
+        record.killed = sig || "default";
+        proc.emit("close", null);
+      }
+    };
+    record.close = function(code) { proc.emit("close", code); };
+    calls.push(record);
+    if (cmd === "taskkill") {
+      setImmediate(function() { proc.emit("close", 0); });
+    }
+    return child;
+  }
+  spawn.calls = calls;
+  return spawn;
+}
+
+function engineForCancel(spawn, extra) {
+  var removed = [];
+  var options = {
+    spawn: spawn,
+    platform: "darwin",
+    arch: "arm64",
+    extensionRoot: "/ext",
+    homedir: "/Users/jose",
+    outputDir: "/tmp/out",
+    existsSync: packagedExists,
+    mkdirSync: function() {},
+    rmSync: function(dir) { removed.push(dir); },
+    killGraceMs: 20
+  };
+  if (extra) {
+    Object.keys(extra).forEach(function(key) { options[key] = extra[key]; });
+  }
+  var engine = engineMod.createEngine(options);
+  engine.removed = removed;
+  return engine;
+}
+
+test("audio modes do not recode video, and resolution changes the format and scale", async function() {
+  var wavSpawn = fakeSpawn(function() {
+    return { code: 0, stdout: "/tmp/out/voice.wav\n" };
+  });
+  var wavEngine = testEngine(wavSpawn);
+  var wav = await wavEngine.download("https://example.com/a", { mode: "wav", resolution: "2160" });
+  assert.equal(wav.filepath, "/tmp/out/voice.wav");
+  assert.equal(wav.transcoded, false);
+  assert.equal(wav.mode, "wav");
+  assert.equal(wavSpawn.calls.length, 1);
+  assert.equal(wavSpawn.calls[0].args[wavSpawn.calls[0].args.indexOf("--audio-format") + 1], "wav");
+  assert.equal(wavSpawn.calls[0].opts.shell, false);
+  assert.equal(wavSpawn.calls[0].opts.detached, true);
+
+  var mp3Spawn = fakeSpawn(function() {
+    return { code: 0, stdout: "/tmp/out/voice.mp3\n" };
+  });
+  var mp3 = await testEngine(mp3Spawn).download("https://example.com/a", { mode: "mp3" });
+  assert.equal(mp3.filepath, "/tmp/out/voice.mp3");
+  assert.equal(mp3Spawn.calls.length, 1);
+  assert.equal(mp3Spawn.calls[0].args[mp3Spawn.calls[0].args.indexOf("--audio-quality") + 1], "0");
+
+  var scaled = fakeSpawn(function(cmd, args) {
+    if (args.indexOf("--newline") !== -1) return { code: 0, stdout: "/tmp/out/source.webm\n" };
+    if (args.indexOf("-c:v") !== -1) return { code: 0 };
+    return { code: 1, stderr: "Video: vp9\nAudio: opus\n" };
+  });
+  var scaledResult = await testEngine(scaled).download("https://example.com/v", { resolution: "720" });
+  assert.equal(scaledResult.transcoded, true);
+  assert.equal(scaled.calls[0].args[scaled.calls[0].args.indexOf("-f") + 1], argsMod.videoFormat(720));
+  assert.ok(scaled.calls[2].args.indexOf("scale=-2:'min(720,ih)'") !== -1);
+
+  var autoSpawn = fakeSpawn(function(cmd, args) {
+    if (args.indexOf("--newline") !== -1) return { code: 0, stdout: "/tmp/out/source.webm\n" };
+    if (args.indexOf("-c:v") !== -1) return { code: 0 };
+    return { code: 1, stderr: "Video: vp9\nAudio: opus\n" };
+  });
+  await testEngine(autoSpawn).download("https://example.com/v", { resolution: "auto" });
+  assert.equal(autoSpawn.calls[0].args[autoSpawn.calls[0].args.indexOf("-f") + 1].indexOf("height<="), -1);
+  assert.equal(autoSpawn.calls[2].args.indexOf("-vf"), -1);
+});
+
+test("cancel sends SIGTERM to the process group, then SIGKILL, and deletes only the work folder", async function() {
+  var killed = [];
+  var spawn = hangingSpawn();
+  var engine = engineForCancel(spawn, {
+    killGroup: function(pid, signal) {
+      killed.push([pid, signal]);
+      if (signal === "SIGKILL") spawn.calls[0].close(null);
+    }
+  });
+  var pending = engine.download("https://example.com/v");
+  var done = assert.rejects(function() { return pending; }, function(err) {
+    return err.code === "E-DL-CANCEL" && err.message === "Cancelado.";
+  });
+  var cancelled = await engine.cancel();
+  assert.equal(cancelled, true);
+  await done;
+  assert.deepEqual(killed, [[-4242, "SIGTERM"], [-4242, "SIGKILL"]]);
+  assert.equal(spawn.calls[0].opts.detached, true);
+  assert.equal(spawn.calls[0].opts.shell, false);
+  assert.deepEqual(engine.removed, [path.join("/tmp/out", engineMod.WORK_DIR_NAME)]);
+  assert.equal(await engine.cancel(), false);
+});
+
+test("a second download is rejected, and SIGTERM alone is enough when the child exits", async function() {
+  var killed = [];
+  var spawn = hangingSpawn();
+  var engine = engineForCancel(spawn, {
+    killGroup: function(pid, signal) {
+      killed.push([pid, signal]);
+      spawn.calls[0].close(null);
+    }
+  });
+  var first = engine.download("https://example.com/v");
+  await assert.rejects(function() { return engine.download("https://example.com/v"); }, function(err) {
+    return err.code === "E-DL-BUSY";
+  });
+  assert.equal(spawn.calls.length, 1);
+  var done = assert.rejects(function() { return first; }, function(err) {
+    return err.code === "E-DL-CANCEL";
+  });
+  await engine.cancel();
+  await done;
+  assert.deepEqual(killed, [[-4242, "SIGTERM"]]);
+});
+
+test("Windows cancel runs taskkill /T /F on the process tree", async function() {
+  var spawn = hangingSpawn();
+  var engine = engineForCancel(spawn, { platform: "win32", arch: "x64" });
+  var pending = engine.download("https://example.com/v");
+  var done = assert.rejects(function() { return pending; }, function(err) {
+    return err.code === "E-DL-CANCEL";
+  });
+  await engine.cancel();
+  await done;
+  assert.equal(spawn.calls[0].opts.detached, undefined);
+  assert.equal(spawn.calls[1].cmd, "taskkill");
+  assert.deepEqual(spawn.calls[1].args, ["/T", "/F", "/PID", "4242"]);
+  assert.equal(spawn.calls[1].opts.shell, false);
+  assert.deepEqual(engine.removed, [path.join("/tmp/out", engineMod.WORK_DIR_NAME)]);
 });
 
 test("manifest, debug flag, and gitignore match the spike contract", function() {

@@ -54,7 +54,7 @@ function isMediaPath(line) {
   var isUnix = line.charAt(0) === "/";
   var isWin = /^[A-Za-z]:[\\/]/.test(line);
   if (!isUnix && !isWin) return false;
-  return /\.(mp4|m4a|mkv|webm|mov)$/i.test(line);
+  return /\.(mp4|m4a|mkv|webm|mov|wav|mp3)$/i.test(line);
 }
 
 function findOutputPath(lines) {
