@@ -44,6 +44,10 @@ function fakeSpawn(handler) {
   return spawn;
 }
 
+function packagedExists(file) {
+  return file.indexOf(path.join("/ext", "bin") + path.sep) === 0;
+}
+
 function testEngine(spawn) {
   return engineMod.createEngine({
     spawn: spawn,
@@ -52,7 +56,7 @@ function testEngine(spawn) {
     extensionRoot: "/ext",
     homedir: "/Users/jose",
     outputDir: "/Users/jose/Movies/xImporter",
-    existsSync: function() { return true; },
+    existsSync: packagedExists,
     mkdirSync: function() {}
   });
 }
@@ -175,7 +179,128 @@ test("binary folders follow platform and architecture", function() {
       existsSync: function(file) { return file.indexOf("deno") === -1; }
     });
   }, function(err) {
-    return err.code === "E-BIN-01" && err.path.indexOf("deno") !== -1;
+    return err.code === "E-BIN-01" && err.path.indexOf("deno") !== -1 && err.message.indexOf("fetch-binaries.sh mac-arm64") !== -1;
+  });
+});
+
+test("selector handles Rosetta, Intel, Windows, and the user bin", function() {
+  function execTranslated(value) {
+    return function(cmd, args) {
+      assert.equal(cmd, "sysctl");
+      assert.deepEqual(args, ["-n", "sysctl.proc_translated"]);
+      if (value === "fail") throw new Error("sysctl failed");
+      return value + "\n";
+    };
+  }
+
+  assert.equal(binaries.readProcTranslated(execTranslated("1")), true);
+  assert.equal(binaries.readProcTranslated(execTranslated("0")), false);
+  assert.equal(binaries.readProcTranslated(execTranslated("fail")), false);
+
+  var rosetta = binaries.resolveBinaries({
+    extensionRoot: "/ext",
+    platform: "darwin",
+    arch: "x64",
+    translated: true,
+    existsSync: packagedExists
+  });
+  assert.equal(rosetta.folder, "mac-x64");
+  assert.equal(rosetta.translated, true);
+  assert.equal(rosetta.warning, binaries.rosettaWarning());
+  assert.ok(rosetta.warning.indexOf("Rosetta") !== -1);
+  assert.equal(rosetta.ytDlp, path.join("/ext", "bin", "mac-x64", "yt-dlp"));
+
+  var intel = binaries.resolveBinaries({
+    extensionRoot: "/ext",
+    platform: "darwin",
+    arch: "x64",
+    execFileSync: execTranslated("0"),
+    existsSync: packagedExists
+  });
+  assert.equal(intel.folder, "mac-x64");
+  assert.equal(intel.translated, false);
+  assert.equal(intel.warning, null);
+
+  var win = binaries.resolveBinaries({
+    extensionRoot: "/ext",
+    platform: "win32",
+    arch: "x64",
+    existsSync: function() { return true; }
+  });
+  assert.equal(win.folder, "win-x64");
+  assert.equal(win.warning, null);
+  assert.equal(win.ytDlp, path.join("/ext", "bin", "win-x64", "yt-dlp.exe"));
+  assert.equal(win.ffmpeg, path.join("/ext", "bin", "win-x64", "ffmpeg.exe"));
+  assert.equal(win.deno, path.join("/ext", "bin", "win-x64", "deno.exe"));
+
+  assert.throws(function() {
+    binaries.resolveBinaries({
+      extensionRoot: "/ext",
+      platform: "win32",
+      arch: "arm64",
+      existsSync: function() { return true; }
+    });
+  }, function(err) {
+    return err.code === "E-BIN-01" && err.message.indexOf("Windows ARM") !== -1;
+  });
+
+  assert.throws(function() {
+    binaries.resolveBinaries({
+      extensionRoot: "/ext",
+      platform: "linux",
+      arch: "x64",
+      existsSync: function() { return true; }
+    });
+  }, function(err) {
+    return err.code === "E-BIN-01" && err.message.indexOf("linux/x64") !== -1;
+  });
+
+  var userDir = binaries.userBinDir({
+    platform: "darwin",
+    arch: "arm64",
+    homedir: "/Users/jose"
+  });
+  assert.equal(userDir, path.join("/Users/jose", "Library", "Application Support", "xImporter", "bin", "mac-arm64"));
+  var winUser = binaries.userBinDir({
+    platform: "win32",
+    arch: "x64",
+    localAppData: "C:\\Users\\jose\\AppData\\Local"
+  });
+  assert.equal(winUser, path.join("C:\\Users\\jose\\AppData\\Local", "xImporter", "bin", "win-x64"));
+
+  var preferred = binaries.resolveBinaries({
+    extensionRoot: "/ext",
+    platform: "darwin",
+    arch: "arm64",
+    homedir: "/Users/jose",
+    existsSync: function() { return true; }
+  });
+  assert.equal(preferred.source, "user");
+  assert.equal(preferred.ytDlp, path.join(userDir, "yt-dlp"));
+
+  var incomplete = binaries.resolveBinaries({
+    extensionRoot: "/ext",
+    platform: "darwin",
+    arch: "arm64",
+    homedir: "/Users/jose",
+    existsSync: function(file) {
+      if (file.indexOf(userDir) === 0 && file.indexOf("deno") !== -1) return false;
+      return true;
+    }
+  });
+  assert.equal(incomplete.source, "packaged");
+  assert.equal(incomplete.deno, path.join("/ext", "bin", "mac-arm64", "deno"));
+
+  assert.throws(function() {
+    binaries.resolveBinaries({
+      extensionRoot: "/ext",
+      platform: "darwin",
+      arch: "x64",
+      homedir: "/Users/jose",
+      existsSync: function() { return false; }
+    });
+  }, function(err) {
+    return err.code === "E-BIN-01" && err.message.indexOf("fetch-binaries.sh mac-x64") !== -1;
   });
 });
 
@@ -193,7 +318,7 @@ test("darwin x64 spawns bin/mac-x64", async function() {
     extensionRoot: "/ext",
     homedir: "/Users/jose",
     outputDir: "/tmp/out",
-    existsSync: function() { return true; },
+    existsSync: packagedExists,
     mkdirSync: function() {}
   });
   var result = await engine.download("https://example.com/v");
@@ -201,6 +326,30 @@ test("darwin x64 spawns bin/mac-x64", async function() {
   assert.equal(spawn.calls[0].cmd, path.join("/ext", "bin", "mac-x64", "yt-dlp"));
   assert.equal(spawn.calls[1].cmd, path.join("/ext", "bin", "mac-x64", "ffmpeg"));
   assert.equal(spawn.calls[0].opts.shell, false);
+});
+
+test("Rosetta warns and still uses the Intel binaries", async function() {
+  var warnings = [];
+  var spawn = fakeSpawn(function(cmd, args) {
+    if (args.indexOf("--newline") !== -1) return { code: 0, stdout: "/tmp/out/clip.mp4\n" };
+    return { code: 1, stderr: "Video: h264\nAudio: aac\n" };
+  });
+  var engine = engineMod.createEngine({
+    spawn: spawn,
+    platform: "darwin",
+    arch: "x64",
+    translated: true,
+    extensionRoot: "/ext",
+    homedir: "/Users/jose",
+    outputDir: "/tmp/out",
+    existsSync: packagedExists,
+    mkdirSync: function() {}
+  });
+  await engine.download("https://example.com/v", {
+    onWarning: function(message) { warnings.push(message); }
+  });
+  assert.deepEqual(warnings, [binaries.rosettaWarning()]);
+  assert.equal(spawn.calls[0].cmd, path.join("/ext", "bin", "mac-x64", "yt-dlp"));
 });
 
 test("codec policy skips h264/aac and recodes the other cases", function() {
@@ -270,7 +419,7 @@ test("download parses progress and imports the printed mp4 when codecs already m
     arch: "arm64",
     extensionRoot: "/ext",
     homedir: "/Users/jose",
-    existsSync: function() { return true; },
+    existsSync: packagedExists,
     mkdirSync: function(dir) { made.push(dir); }
   });
   var result = await engine.download("https://example.com/watch?v=abc", {

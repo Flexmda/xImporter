@@ -2,7 +2,11 @@
 
 xImporter is an internal CEP panel. It reads a URL, downloads an MP4 (H.264/AAC, up to 1080p) into `~/Movies/xImporter` with the bundled yt-dlp, ffmpeg, and Deno, and imports that file into the open Premiere project.
 
-Jose's Mac is Intel. On that machine Node reports `process.arch === "x64"`, and the panel loads `panel/bin/mac-x64/`. Apple Silicon (`arm64`) uses `panel/bin/mac-arm64/`. There is no license check and no paid signature. Binaries are ad-hoc signed with `codesign -s -`.
+Jose's Mac is Intel. On that machine Node reports `process.arch === "x64"`, and the panel loads `panel/bin/mac-x64/`. Apple Silicon (`arm64`) uses `panel/bin/mac-arm64/`. Windows x64 uses `panel/bin/win-x64/` and the `.exe` names. There is no license check and no paid signature. Binaries are ad-hoc signed with `codesign -s -`.
+
+If Premiere on an Apple Silicon Mac is opened under Rosetta, Node reports `x64` and `sysctl.proc_translated` is `1`. The panel still loads `bin/mac-x64/` (those binaries run under Rosetta) and shows a warning to open Premiere natively. An Intel Mac has `proc_translated` `0`, or `sysctl` fails, and gets the same folder with no warning. Windows ARM and any other platform raise `E-BIN-01` with the platform name.
+
+A complete set of the three binaries in the user data folder wins over the copy inside the extension: `~/Library/Application Support/xImporter/bin/<folder>/` on macOS, `%LOCALAPPDATA%\xImporter\bin\win-x64\` on Windows. A partial user folder is ignored. Updates belong there so a signed extension folder is not modified.
 
 ## Install on the Intel Mac
 
@@ -120,7 +124,7 @@ YouTube needs a network path so Deno can run yt-dlp's JavaScript challenge scrip
 These checks run on Linux (`npm test` / `npm run lint`):
 
 - `node --check` and `bash -n` on the shell scripts
-- Engine tests, including Darwin `x64` resolving and spawning `bin/mac-x64`
+- Engine tests, including Darwin `x64` resolving and spawning `bin/mac-x64`, Rosetta (`sysctl.proc_translated` = 1) warning plus the same folder, Windows `.exe` paths, and the user-data bin preferred only when yt-dlp, ffmpeg, and deno are all present
 - `scripts/fetch-binaries.sh --self-test` (checksum match and mismatch, `chmod +x`, host target)
 - `scripts/package.sh --self-test` (zip name, only the requested binaries, Spanish `INSTALAR.txt`, executable `install-mac.sh`)
 - `install-mac.sh --self-test` (copy into a temp home, executable bits, `Movies/xImporter`)

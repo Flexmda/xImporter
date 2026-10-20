@@ -2,6 +2,8 @@
 
 var path = require("path");
 
+var NAMES = ["yt-dlp", "ffmpeg", "deno"];
+
 function platformFolder(platform, arch) {
   if (platform === "darwin" && arch === "arm64") return "mac-arm64";
   if (platform === "darwin" && arch === "x64") return "mac-x64";
@@ -13,30 +15,111 @@ function executableName(base, platform) {
   return platform === "win32" ? base + ".exe" : base;
 }
 
-function resolveBinaries(options) {
+// sysctl.proc_translated is 1 when this process is running under Rosetta.
+// A missing sysctl (Intel Mac, or not macOS) means "not translated".
+function readProcTranslated(execFileSync) {
+  try {
+    var out = execFileSync("sysctl", ["-n", "sysctl.proc_translated"], {
+      encoding: "utf8",
+      timeout: 2000,
+      windowsHide: true
+    });
+    return String(out).trim() === "1";
+  } catch (err) {
+    return false;
+  }
+}
+
+function userDataRoot(options) {
+  if (options.platform === "win32") {
+    if (options.localAppData) return options.localAppData;
+    if (options.homedir) return path.join(options.homedir, "AppData", "Local");
+    return null;
+  }
+  if (!options.homedir) return null;
+  return path.join(options.homedir, "Library", "Application Support");
+}
+
+function userBinDir(options) {
   var folder = platformFolder(options.platform, options.arch);
-  if (!folder) {
-    var unsupported = new Error("Unsupported platform " + options.platform + "/" + options.arch + ".");
-    unsupported.code = "E-BIN-01";
-    throw unsupported;
+  var root = userDataRoot(options);
+  if (!folder || !root) return null;
+  return path.join(root, "xImporter", "bin", folder);
+}
+
+function filePath(dir, base, platform) {
+  return path.join(dir, executableName(base, platform));
+}
+
+function directoryComplete(dir, platform, existsSync) {
+  if (!dir || typeof existsSync !== "function") return false;
+  for (var i = 0; i < NAMES.length; i++) {
+    if (!existsSync(filePath(dir, NAMES[i], platform))) return false;
+  }
+  return true;
+}
+
+function unsupportedError(platform, arch) {
+  var message;
+  if (platform === "win32" && arch === "arm64") {
+    message = "Windows ARM no está soportado. Usa Windows 10 u 11 de 64 bits (x64).";
+  } else {
+    message = "Plataforma no soportada: " + platform + "/" + arch + ". xImporter funciona en macOS (Apple Silicon e Intel) y en Windows x64.";
+  }
+  var err = new Error(message);
+  err.code = "E-BIN-01";
+  return err;
+}
+
+function missingError(full, folder) {
+  var hint = "Falta el binario " + full + ". Desde la raíz del repositorio ejecuta scripts/fetch-binaries.sh " + folder + ".";
+  var err = new Error(hint);
+  err.code = "E-BIN-01";
+  err.path = full;
+  return err;
+}
+
+function rosettaWarning() {
+  return "Premiere está corriendo con Rosetta. Se usarán los binarios de Mac Intel. Abre Premiere en modo nativo (Apple Silicon) para mejor rendimiento.";
+}
+
+function resolveBinaries(options) {
+  options = options || {};
+  var platform = options.platform;
+  var arch = options.arch;
+  var translated = false;
+  if (platform === "darwin") {
+    if (typeof options.translated === "boolean") {
+      translated = options.translated;
+    } else if (typeof options.execFileSync === "function") {
+      translated = readProcTranslated(options.execFileSync);
+    }
   }
 
-  var dir = path.join(options.extensionRoot, "bin", folder);
-  var names = ["yt-dlp", "ffmpeg", "deno"];
-  var resolved = { dir: dir, folder: folder };
+  var folder = platformFolder(platform, arch);
+  if (!folder) throw unsupportedError(platform, arch);
 
-  for (var i = 0; i < names.length; i++) {
-    var fileName = executableName(names[i], options.platform);
-    var full = path.join(dir, fileName);
-    if (!options.existsSync(full)) {
-      var hint = "Missing " + full + ".";
-      hint += " From the repo root, run scripts/fetch-binaries.sh " + folder + ".";
-      var missing = new Error(hint);
-      missing.code = "E-BIN-01";
-      missing.path = full;
-      throw missing;
-    }
-    resolved[names[i] === "yt-dlp" ? "ytDlp" : names[i]] = full;
+  var packaged = path.join(options.extensionRoot, "bin", folder);
+  var userDir = userBinDir(options);
+  var dir = packaged;
+  var source = "packaged";
+  if (directoryComplete(userDir, platform, options.existsSync)) {
+    dir = userDir;
+    source = "user";
+  }
+
+  var resolved = {
+    dir: dir,
+    folder: folder,
+    source: source,
+    translated: translated,
+    warning: platform === "darwin" && arch === "x64" && translated ? rosettaWarning() : null
+  };
+
+  for (var i = 0; i < NAMES.length; i++) {
+    var full = filePath(dir, NAMES[i], platform);
+    if (!options.existsSync(full)) throw missingError(full, folder);
+    resolved[NAMES[i] === "yt-dlp" ? "ytDlp" : NAMES[i]] = full;
   }
 
   return resolved;
@@ -45,5 +128,8 @@ function resolveBinaries(options) {
 module.exports = {
   platformFolder: platformFolder,
   executableName: executableName,
-  resolveBinaries: resolveBinaries
+  readProcTranslated: readProcTranslated,
+  userBinDir: userBinDir,
+  resolveBinaries: resolveBinaries,
+  rosettaWarning: rosettaWarning
 };
