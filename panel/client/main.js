@@ -13,6 +13,7 @@
   var folderEl = document.getElementById("folder");
   var button = document.getElementById("download");
   var cancelButton = document.getElementById("cancel");
+  var updateButton = document.getElementById("update");
   var barFill = document.getElementById("bar-fill");
   var logEl = document.getElementById("log");
 
@@ -38,13 +39,17 @@
     show("Node.js no está disponible. El manifiesto debe activar nodejs y mixed-context.");
     if (button) button.disabled = true;
     if (pasteButton) pasteButton.disabled = true;
+    if (updateButton) updateButton.disabled = true;
     return;
   }
 
   var path = require("path");
+  var os = require("os");
+  var childProcess = require("child_process");
   var engineMod = require(path.join(__dirname, "..", "node", "engine.js"));
   var jsx = require(path.join(__dirname, "..", "node", "jsx.js"));
   var progress = require(path.join(__dirname, "..", "node", "progress.js"));
+  var updater = require(path.join(__dirname, "..", "node", "update.js"));
   var engine = engineMod.createEngine();
   var cs = new CSInterface();
 
@@ -80,6 +85,7 @@
     pasteButton.disabled = busy;
     modeEl.disabled = busy;
     resolutionEl.disabled = busy;
+    if (updateButton) updateButton.disabled = busy;
     cancelButton.disabled = !busy;
   }
 
@@ -195,6 +201,27 @@
   input.addEventListener("keydown", function(event) {
     if (event.key === "Enter" && !button.disabled) startDownload();
   });
+  if (updateButton) {
+    updateButton.addEventListener("click", function() {
+      setBusy(true);
+      cancelButton.disabled = true;
+      logEl.textContent = "";
+      show("Actualizando yt-dlp…");
+      updater.updateYtDlp({
+        platform: process.platform,
+        arch: process.arch,
+        homedir: os.homedir(),
+        localAppData: process.env.LOCALAPPDATA,
+        spawnSync: childProcess.spawnSync
+      }).then(function(result) {
+        appendLog(result.path);
+        if (result.warning) appendLog(result.warning);
+        finish("yt-dlp actualizado.");
+      }).catch(function(err) {
+        finish(err && err.message ? err.message : "No se pudo actualizar yt-dlp.");
+      });
+    });
+  }
   modeEl.addEventListener("change", syncMode);
   resolutionEl.addEventListener("change", syncMode);
   syncMode();
