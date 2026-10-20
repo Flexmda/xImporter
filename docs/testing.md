@@ -73,6 +73,17 @@ scripts/package.sh mac-x64
 
 Output: `dist/xImporter-<version>-mac-x64.zip`. It contains `install-mac.sh`, `INSTALAR.txt`, and `panel/` with only that target's binaries. `dist/` is gitignored.
 
+`scripts/package.sh win-x64` writes `dist/xImporter-<version>-win-x64.zip` with `setup-dev.bat` and a Spanish `INSTALAR.txt`. `scripts/setup-dev.bat` sets `PlayerDebugMode` as `REG_SZ` `1` for `CSXS.11` and `CSXS.12`. From a git checkout it junctions the repo panel; from the unzipped package it copies the panel to `%APPDATA%\Adobe\CEP\extensions\xImporter`.
+
+`scripts/sign-zxp.sh <target>` asks Adobe `ZXPSignCmd` to create `dist/certs/ximporter-self.p12` (`-selfSignedCert`) and then sign `dist/xImporter-<version>-<target>.zxp`. The `.p12` is gitignored. ZXPSignCmd 4.1.3 exists for macOS and Windows only, so this Linux environment does not produce the `.zxp`. On a Mac:
+
+```sh
+# download ZXPSignCMD/4.1.3/macOS/ZXPSignCmd from Adobe-CEP/CEP-Resources
+chmod +x ZXPSignCmd
+xattr -dr com.apple.quarantine ZXPSignCmd
+ZXPSIGNCMD="$PWD/ZXPSignCmd" scripts/sign-zxp.sh mac-x64
+```
+
 ## Checklist
 
 Intel, after `scripts/fetch-binaries.sh mac-x64` (or inside the installed extension):
