@@ -51,7 +51,7 @@
   if (folderEl) folderEl.textContent = engine.outputDirectory();
 
   var importMessages = {
-    "OK": "Importado en el proyecto.",
+    "OK": "Importado en xImporter.",
     "E-HOST-01": "Abre un proyecto de Premiere antes de importar.",
     "E-HOST-02": "Premiere no pudo importar el archivo.",
     "EvalScript error.": "Premiere no pudo ejecutar el script de importación."
