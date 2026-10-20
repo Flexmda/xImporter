@@ -20,7 +20,8 @@ function isPremiereFriendly(codecs) {
 
 // libx264 matches the static macOS ffmpeg this spike downloads (x264 is in that build).
 // Hardware encoders are a later milestone. H.264 video with a different audio codec is copied.
-function buildTranscodeArgs(input, output, codecs) {
+function buildTranscodeArgs(input, output, codecs, maxHeight) {
+  if (maxHeight === undefined) maxHeight = 1080;
   var videoCopy = codecs && (codecs.video === "h264" || codecs.video === "avc1");
   var args = ["-hide_banner", "-y", "-i", input];
   if (videoCopy) {
@@ -30,11 +31,11 @@ function buildTranscodeArgs(input, output, codecs) {
       "-c:v", "libx264",
       "-preset", "veryfast",
       "-crf", "20",
-      "-pix_fmt", "yuv420p",
-      "-vf", "scale=-2:'min(1080,ih)'"
+      "-pix_fmt", "yuv420p"
     );
+    if (maxHeight) args.push("-vf", "scale=-2:'min(" + maxHeight + ",ih)'");
   }
-  args.push("-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", output);
+  args.push("-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-movflags", "+faststart", output);
   return args;
 }
 

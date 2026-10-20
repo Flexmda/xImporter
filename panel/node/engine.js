@@ -64,11 +64,27 @@ function translatedFlag(deps, platform) {
   return binaries.readProcTranslated(childProcess.execFileSync);
 }
 
-function runProcess(spawn, command, args, hooks) {
+var WORK_DIR_NAME = ".xip-work";
+
+function cancelError() {
+  var err = new Error("Cancelado.");
+  err.code = "E-DL-CANCEL";
+  return err;
+}
+
+function busyError() {
+  var err = new Error("Ya hay una descarga en curso.");
+  err.code = "E-DL-BUSY";
+  return err;
+}
+
+function runProcess(spawn, command, args, hooks, session) {
   hooks = hooks || {};
+  session = session || {};
   return new Promise(function(resolve, reject) {
     var child;
     var opts = { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] };
+    if (session.group) opts.detached = true;
     try {
       child = spawn(command, args, opts);
     } catch (err) {
@@ -79,6 +95,7 @@ function runProcess(spawn, command, args, hooks) {
       reject(new Error("spawn did not return a process"));
       return;
     }
+    if (session.onChild) session.onChild(child);
 
     var stdout = "";
     var stderr = "";
@@ -119,6 +136,10 @@ function runProcess(spawn, command, args, hooks) {
       stdoutSplit.flush();
       stderrSplit.flush();
       finish(function() {
+        if (session.isCancelled && session.isCancelled()) {
+          reject(cancelError());
+          return;
+        }
         if (code === 0) {
           resolve({
             code: code,
@@ -153,10 +174,21 @@ function createEngine(deps) {
   var mkdirSync = deps.mkdirSync || function(dir) {
     fs.mkdirSync(dir, { recursive: true });
   };
+  var useGroup = platform !== "win32";
+  var active = null;
+  var cancelRequested = false;
+
+  function tracked(command, args, hooks) {
+    return runProcess(spawn, command, args, hooks, {
+      group: useGroup,
+      onChild: function(child) { active = child; },
+      isCancelled: function() { return cancelRequested; }
+    });
+  }
 
   function probeFile(ffmpegPath, mediaPath) {
     // ffmpeg -i exits 1 when it is only printing stream info. That still counts as a probe.
-    return runProcess(spawn, ffmpegPath, ["-hide_banner", "-i", mediaPath], {}).then(function(result) {
+    return tracked(ffmpegPath, ["-hide_banner", "-i", mediaPath], {}).then(function(result) {
       return codecs.inspectCodecs(result.stderr + "\n" + result.stdout);
     }, function(err) {
       var text = (err.stderr || "") + "\n" + (err.stdout || "");
@@ -165,8 +197,112 @@ function createEngine(deps) {
     });
   }
 
+  function removeWork(dir) {
+    var rm = deps.rmSync || fs.rmSync.bind(fs);
+    try {
+      rm(dir, { recursive: true, force: true });
+    } catch (err) {
+      // The task folder is the only thing cancel is allowed to delete.
+    }
+  }
+
+  function releaseFile(media, outputDir, workDir) {
+    var absMedia = path.resolve(media);
+    var prefix = path.resolve(workDir) + path.sep;
+    if (absMedia.indexOf(prefix) !== 0) return media;
+    var dest = path.join(outputDir, path.basename(media));
+    if (path.resolve(dest) === absMedia) return media;
+    var rename = deps.renameSync || fs.renameSync.bind(fs);
+    rename(media, dest);
+    return dest;
+  }
+
+  function killTree(child) {
+    if (!child) return Promise.resolve();
+    var pid = child.pid;
+    if (platform === "win32") {
+      if (!pid) {
+        try { if (child.kill) child.kill(); } catch (err) {}
+        return Promise.resolve();
+      }
+      return new Promise(function(resolve) {
+        var killer = null;
+        try {
+          killer = spawn("taskkill", ["/T", "/F", "/PID", String(pid)], {
+            shell: false,
+            windowsHide: true,
+            stdio: ["ignore", "pipe", "pipe"]
+          });
+        } catch (err) {
+          try { if (child.kill) child.kill(); } catch (err2) {}
+          resolve();
+          return;
+        }
+        if (killer && killer.stdout && killer.stdout.on) killer.stdout.on("data", function() {});
+        if (killer && killer.stderr && killer.stderr.on) killer.stderr.on("data", function() {});
+        var done = false;
+        function finish() {
+          if (done) return;
+          done = true;
+          resolve();
+        }
+        if (killer && typeof killer.on === "function") {
+          killer.on("close", finish);
+          killer.on("error", finish);
+        } else {
+          finish();
+        }
+        try { if (child.kill) child.kill(); } catch (err3) {}
+      });
+    }
+
+    var killGroup = deps.killGroup || function(groupPid, signal) {
+      process.kill(groupPid, signal);
+    };
+    if (!pid) {
+      try { if (child.kill) child.kill("SIGTERM"); } catch (err) {}
+      return Promise.resolve();
+    }
+    return new Promise(function(resolve) {
+      var finished = false;
+      function finish() {
+        if (finished) return;
+        finished = true;
+        resolve();
+      }
+      var grace = deps.killGraceMs == null ? 3000 : deps.killGraceMs;
+      var timer = setTimeout(function() {
+        try {
+          killGroup(-pid, "SIGKILL");
+        } catch (err) {
+          try { if (child.kill) child.kill("SIGKILL"); } catch (err2) {}
+        }
+        finish();
+      }, grace);
+      if (typeof child.on === "function") {
+        child.on("close", function() {
+          clearTimeout(timer);
+          finish();
+        });
+      }
+      try {
+        killGroup(-pid, "SIGTERM");
+      } catch (err) {
+        try { if (child.kill) child.kill("SIGTERM"); } catch (err2) {}
+      }
+    });
+  }
+
+  function cancel() {
+    if (!active) return Promise.resolve(false);
+    cancelRequested = true;
+    return killTree(active).then(function() { return true; });
+  }
+
   function download(url, hooks) {
     hooks = hooks || {};
+    if (active) return Promise.reject(busyError());
+
     var cleanUrl;
     try {
       cleanUrl = validateUrl(url);
@@ -192,29 +328,41 @@ function createEngine(deps) {
     if (bins.warning && hooks.onWarning) hooks.onWarning(bins.warning);
 
     var outputDir = deps.outputDir || outputDirectory(homedir);
+    var workDir = path.join(outputDir, WORK_DIR_NAME);
+    var mode = argsMod.normalizeMode(hooks.mode);
     try {
       mkdirSync(outputDir);
+      mkdirSync(workDir);
     } catch (err) {
       return Promise.reject(err);
     }
+
+    active = { pid: null };
+    cancelRequested = false;
 
     var dlArgs = argsMod.buildYtDlpArgs({
       url: cleanUrl,
       ffmpegPath: bins.ffmpeg,
       denoPath: bins.deno,
-      outputDir: outputDir
+      outputDir: workDir,
+      mode: mode,
+      resolution: hooks.resolution
     });
 
-    return runProcess(spawn, bins.ytDlp, dlArgs, hooks).then(function(result) {
+    return tracked(bins.ytDlp, dlArgs, hooks).then(function(result) {
       var media = progress.findOutputPath(result.stdoutLines);
       if (!media) {
         var missing = new Error("yt-dlp finished without reporting the file path.");
         missing.code = "E-DL-04";
         throw missing;
       }
+      media = releaseFile(media, outputDir, workDir);
+      if (mode !== "video") {
+        return { filepath: media, transcoded: false, mode: mode, codecs: null };
+      }
       return probeFile(bins.ffmpeg, media).then(function(info) {
         if (codecs.isPremiereFriendly(info)) {
-          return { filepath: media, transcoded: false, codecs: info };
+          return { filepath: media, transcoded: false, mode: mode, codecs: info };
         }
         var dest = transcodePath(media);
         if (hooks.onProgress) {
@@ -226,16 +374,31 @@ function createEngine(deps) {
             eta: null
           });
         }
-        var tArgs = codecs.buildTranscodeArgs(media, dest, info);
-        return runProcess(spawn, bins.ffmpeg, tArgs, hooks).then(function() {
-          return { filepath: dest, transcoded: true, codecs: info };
+        var tArgs = codecs.buildTranscodeArgs(media, dest, info, argsMod.heightCap(hooks.resolution));
+        return tracked(bins.ffmpeg, tArgs, hooks).then(function() {
+          return { filepath: dest, transcoded: true, mode: mode, codecs: info };
         });
       });
+    }).then(function(value) {
+      active = null;
+      cancelRequested = false;
+      return value;
+    }, function(err) {
+      var cancelled = cancelRequested || (err && err.code === "E-DL-CANCEL");
+      active = null;
+      cancelRequested = false;
+      if (cancelled) {
+        removeWork(workDir);
+        if (err && err.code === "E-DL-CANCEL") throw err;
+        throw cancelError();
+      }
+      throw err;
     });
   }
 
   return {
     download: download,
+    cancel: cancel,
     outputDirectory: function() {
       return outputDirectory(homedir);
     }
@@ -247,5 +410,6 @@ module.exports = {
   validateUrl: validateUrl,
   outputDirectory: outputDirectory,
   transcodePath: transcodePath,
-  runProcess: runProcess
+  runProcess: runProcess,
+  WORK_DIR_NAME: WORK_DIR_NAME
 };
