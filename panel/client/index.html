@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>xImporter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>xImporter</h1>
+    <p class="note">Internal. Download only media you have the rights to use.</p>
+  </header>
+  <label for="url">URL</label>
+  <input id="url" type="url" spellcheck="false" placeholder="https://">
+  <button id="download" type="button">Download</button>
+  <p id="status">Idle</p>
+  <pre id="log" aria-live="polite"></pre>
+  <script src="CSInterface.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
