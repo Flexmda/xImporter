@@ -1,0 +1,37 @@
+xImporter @@VERSION@@ — instalación en Windows (@@TARGET@@)
+
+Este paquete es interno de la agencia. No pide licencia, no cobra y no usa Authenticode.
+
+Este zip: xImporter-@@VERSION@@-@@TARGET@@
+Equipo: @@ARCH_LABEL@@
+
+1. Descomprime el zip y deja la carpeta en un sitio fijo.
+2. Haz doble clic en setup-dev.bat (o ejecútalo desde cmd).
+
+   El script escribe PlayerDebugMode como texto "1" en:
+   HKCU\Software\Adobe\CSXS.11
+   HKCU\Software\Adobe\CSXS.12
+
+   Premiere 2022–2024 usa CEP 11. Premiere 2025 (25.x) usa CEP 12.
+   Un valor numérico se ignora en algunas versiones; tiene que ser el texto 1.
+
+   Después copia el panel a:
+   %APPDATA%\Adobe\CEP\extensions\xImporter
+
+3. Cierra Premiere Pro por completo y ábrelo otra vez.
+4. Abre un proyecto.
+5. Elige Ventana > Extensiones > xImporter.
+6. Pega una URL de YouTube, TikTok o Facebook que tengas derecho a descargar y pulsa Descargar.
+
+Los archivos quedan en la carpeta Movies\xImporter de tu usuario.
+El bin del proyecto se llama xImporter.
+
+Los ejecutables de este zip son PE32+ x86-64: yt-dlp.exe, ffmpeg.exe y deno.exe.
+No hay firma Authenticode en este paquete interno.
+
+Si el menú no aparece, en cmd:
+
+  reg query HKCU\Software\Adobe\CSXS.11 /v PlayerDebugMode
+  reg query HKCU\Software\Adobe\CSXS.12 /v PlayerDebugMode
+
+Ambos deben mostrar REG_SZ y 1.

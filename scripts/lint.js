@@ -32,7 +32,7 @@ files.forEach(function(file) {
   }
 });
 
-["scripts/fetch-binaries.sh", "scripts/setup-dev.sh", "scripts/package.sh", "install-mac.sh"].forEach(function(rel) {
+["scripts/fetch-binaries.sh", "scripts/setup-dev.sh", "scripts/package.sh", "scripts/sign-zxp.sh", "scripts/build-pkg.sh", "scripts/build-exe.sh", "install-mac.sh"].forEach(function(rel) {
   var result = cp.spawnSync("bash", ["-n", path.join(root, rel)], { encoding: "utf8" });
   if (result.status !== 0) {
     failed = true;

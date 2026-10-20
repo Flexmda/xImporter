@@ -73,6 +73,25 @@ scripts/package.sh mac-x64
 
 Output: `dist/xImporter-<version>-mac-x64.zip`. It contains `install-mac.sh`, `INSTALAR.txt`, and `panel/` with only that target's binaries. `dist/` is gitignored.
 
+`scripts/package.sh win-x64` writes `dist/xImporter-<version>-win-x64.zip` with `setup-dev.bat` and a Spanish `INSTALAR.txt`. `scripts/setup-dev.bat` sets `PlayerDebugMode` as `REG_SZ` `1` for `CSXS.11` and `CSXS.12`. From a git checkout it junctions the repo panel; from the unzipped package it copies the panel to `%APPDATA%\Adobe\CEP\extensions\xImporter`.
+
+The file a person double-clicks is the installer, not a zip and not a terminal script.
+
+`scripts/build-pkg.sh mac-arm64`, `mac-x64`, or `mac-universal` builds an unsigned `.pkg` with `pkgbuild` and `productbuild`. It installs into `/Library/Application Support/Adobe/CEP/extensions/xImporter`. The `postinstall` script (it runs on the Mac, as root) turns on execute permission, clears quarantine, ad hoc signs `yt-dlp`, `ffmpeg`, and `deno` with `codesign -s -`, and writes `PlayerDebugMode` as the string `1` for the logged-in user in `com.adobe.CSXS.11` and `com.adobe.CSXS.12`. `pkgbuild` does not exist on Linux, so this machine does not produce a `.pkg`. On a Mac, fetch the binaries and run the script. The same build is the GitHub Actions workflow `.github/workflows/installers.yml`, started only with `workflow_dispatch` (not on push, and not on merge).
+
+The pkg is unsigned. The first time it is opened: right-click the file and choose Open. On macOS 15 and later the other path is System Settings > Privacy & Security > Open Anyway. The installer window then asks for the Mac password because it writes under `/Library`.
+
+`scripts/build-exe.sh` builds an unsigned NSIS `.exe`. It copies the panel to `%APPDATA%\Adobe\CEP\extensions\xImporter`, sets `PlayerDebugMode` as `REG_SZ` `1` in `HKCU\Software\Adobe\CSXS.11` and `CSXS.12`, creates the Movies folder, and registers `Uninstall-xImporter.exe`. There is no Authenticode signature. SmartScreen says Windows protected the PC: choose More info, then Run anyway.
+
+`scripts/sign-zxp.sh <target>` remains the secondary path. It asks Adobe `ZXPSignCmd` to create `dist/certs/ximporter-self.p12` (`-selfSignedCert`) and then sign `dist/xImporter-<version>-<target>.zxp`. The `.p12` is gitignored. ZXPSignCmd 4.1.3 exists for macOS and Windows only, so this Linux environment does not produce the `.zxp`. On a Mac:
+
+```sh
+# download ZXPSignCMD/4.1.3/macOS/ZXPSignCmd from Adobe-CEP/CEP-Resources
+chmod +x ZXPSignCmd
+xattr -dr com.apple.quarantine ZXPSignCmd
+ZXPSIGNCMD="$PWD/ZXPSignCmd" scripts/sign-zxp.sh mac-x64
+```
+
 ## Checklist
 
 Intel, after `scripts/fetch-binaries.sh mac-x64` (or inside the installed extension):

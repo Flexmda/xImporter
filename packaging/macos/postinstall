@@ -1,0 +1,52 @@
+#!/bin/bash
+# Runs as root from the unsigned xImporter pkg.
+# Ad hoc codesign only works on macOS, so the signature is applied here
+# rather than on a Linux build machine.
+set -euo pipefail
+
+DEST="${2:-}"
+if [[ -z "$DEST" || ! -d "$DEST" ]]; then
+  DEST="/Library/Application Support/Adobe/CEP/extensions/xImporter"
+fi
+
+if [[ ! -d "$DEST" ]]; then
+  echo "xImporter payload not found at $DEST" >&2
+  exit 1
+fi
+
+chmod -R a+rX "$DEST"
+xattr -dr com.apple.quarantine "$DEST" || true
+
+shopt -s nullglob
+for bin in "$DEST"/bin/mac-arm64/* "$DEST"/bin/mac-x64/*; do
+  if [[ ! -f "$bin" ]]; then
+    continue
+  fi
+  chmod 755 "$bin"
+  xattr -dr com.apple.quarantine "$bin" || true
+  codesign -s - --force "$bin"
+  codesign -v "$bin"
+done
+
+CONSOLE_USER="$(stat -f "%Su" /dev/console 2>/dev/null || true)"
+if [[ -z "$CONSOLE_USER" || "$CONSOLE_USER" == "root" || "$CONSOLE_USER" == "loginwindow" ]]; then
+  echo "No logged-in user for PlayerDebugMode (console user: ${CONSOLE_USER:-none})." >&2
+  exit 1
+fi
+
+USER_HOME="$(dscl . -read "/Users/$CONSOLE_USER" NFSHomeDirectory | awk '{print $2}')"
+if [[ -z "$USER_HOME" || ! -d "$USER_HOME" ]]; then
+  echo "Home directory for $CONSOLE_USER was not found." >&2
+  exit 1
+fi
+
+# PlayerDebugMode must be the string 1. An integer is ignored by some Premiere versions.
+sudo -n -u "$CONSOLE_USER" HOME="$USER_HOME" defaults write com.adobe.CSXS.11 PlayerDebugMode -string 1
+sudo -n -u "$CONSOLE_USER" HOME="$USER_HOME" defaults write com.adobe.CSXS.12 PlayerDebugMode -string 1
+
+mkdir -p "$USER_HOME/Movies/xImporter"
+chown "$CONSOLE_USER" "$USER_HOME/Movies/xImporter"
+
+echo "xImporter installed at $DEST"
+echo "PlayerDebugMode=1 for CSXS.11 and CSXS.12 as $CONSOLE_USER"
+exit 0

@@ -7,6 +7,8 @@ panel/bin/win-x64/**
 !panel/bin/win-x64/.gitkeep
 
 dist/
+*.p12
+*.pfx
 node_modules/
 .DS_Store
 *.log

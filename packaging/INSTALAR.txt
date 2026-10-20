@@ -22,7 +22,7 @@ Equipo: @@ARCH_LABEL@@
 3. Cierra Premiere Pro por completo (no basta con cerrar el proyecto) y ábrelo otra vez.
 4. Abre un proyecto.
 5. Elige Ventana > Extensiones > xImporter.
-6. Pega una URL http o https de un video que tengas derecho a descargar y pulsa Download.
+6. Pega una URL de YouTube, TikTok o Facebook que tengas derecho a descargar y pulsa Descargar.
 
 El archivo queda en ~/Movies/xImporter como MP4 H.264/AAC de hasta 1080p, y Premiere lo importa al proyecto.
 
